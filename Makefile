@@ -32,12 +32,14 @@ migrate:
 migration:
 	docker compose exec api alembic revision --autogenerate -m "$(name)"
 
-# Run backend and frontend smoke tests.
+# Run backend and frontend tests. Backend tests run inside the api
+# container (not the host venv) since they exercise the real database,
+# whose port is deliberately not published to the host.
 test:
-	cd apps/api && . .venv/bin/activate && pytest
+	docker compose exec api pytest
 	cd apps/web && npm run test
 
 # Lint backend and frontend.
 lint:
-	cd apps/api && . .venv/bin/activate && ruff check .
+	docker compose exec api ruff check .
 	cd apps/web && npm run lint
