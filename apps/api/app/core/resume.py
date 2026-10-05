@@ -16,23 +16,6 @@ class ResumeStatus(StrEnum):
     COMPLETED = "COMPLETED"
 
 
-class ReviewRequestStatus(StrEnum):
-    """Internal workflow granularity. No reviewer portal exists yet in
-    this phase to drive REQUESTED -> IN_REVIEW -> COMPLETED, so those
-    transitions happen via service functions a future phase's reviewer
-    tooling will call -- see app/services/resume_review.py."""
-
-    REQUESTED = "REQUESTED"
-    IN_REVIEW = "IN_REVIEW"
-    COMPLETED = "COMPLETED"
-
-
-class ReviewerType(StrEnum):
-    HUMAN = "HUMAN"
-    AI = "AI"
-    HYBRID = "HYBRID"
-
-
 # --- Upload validation ------------------------------------------------
 #
 # The extension alone is never trusted: every accepted extension also

@@ -12,6 +12,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   return proxyCandidateRequest(request, path);
 }
 
+export async function PUT(request: Request, { params }: RouteParams) {
+  const { path } = await params;
+  return proxyCandidateRequest(request, path);
+}
+
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { path } = await params;
   return proxyCandidateRequest(request, path);

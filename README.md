@@ -6,7 +6,8 @@ Development foundation for Ellow Launchpad — a candidate career-launch platfor
 - **Phase 2**: authentication and an RBAC foundation — registration, login, access/refresh tokens, a current-user endpoint, and a minimal role-based authorization mechanism.
 - **Phase 3**: candidate identity — profile, education, skills, work experience, career preferences, a deterministic profile-completion score, and a guided onboarding flow.
 - **Phase 4**: the real candidate dashboard at `/app` — profile completion, readiness breakdown, a deterministic next-action, honest "coming soon" placeholders for unbuilt modules.
-- **Phase 5** (this state): the Resume Centre — upload, versioning, and a manual (non-AI) review workflow. See [Resume Centre](#resume-centre) below. No other business features (interviews, credits, jobs, etc.) are implemented yet.
+- **Phase 5**: the Resume Centre — upload, versioning, and a manual (non-AI) review workflow. See [Resume Centre](#resume-centre) below.
+- **Phase 6** (this state): the LinkedIn Centre — add/edit a LinkedIn profile URL and the same manual, provider-agnostic review workflow as Resume. See [LinkedIn Centre](#linkedin-centre) below. No other business features (interviews, credits, jobs, etc.) are implemented yet.
 
 ## Architecture
 
@@ -183,6 +184,22 @@ Every upload creates a new version; none are overwritten. The candidate's `Candi
 ### No reviewer portal yet
 
 `app/services/resume_review.py::start_review` / `complete_review` exist and are tested, but **no API endpoint exposes them** — there is no admin/recruiter/reviewer UI in this phase (out of scope per the brief). A completed review is currently written by calling `complete_review` directly (see the manual-verification steps used during development), which is the intended Phase-5-appropriate way to simulate what a future reviewer tool will do through its own API, without inventing that tool now.
+
+## LinkedIn Centre
+
+### Why a separate table, not a shared `ReviewRequest`
+
+Phase 5's `ReviewRequest.resume_id` is `NOT NULL`, has its own dedicated FK, and its own partial unique index (`uq_review_requests_active_per_resume`). Retrofitting LinkedIn into that same table (Option A: a polymorphic `review_type` + nullable `resume_id`/`linkedin_profile_id` + a CHECK constraint ensuring exactly one is set) would mean real schema surgery on a table Phase 5 already depends on, for no integrity benefit a separate table doesn't already get more simply. Instead, `LinkedInReviewRequest`/`LinkedInReviewResult` are **structural twins** of `ReviewRequest`/`ReviewResult` — same lifecycle, same ownership pattern, same partial-unique-index trick (`uq_linkedin_review_requests_active_per_profile`) — just their own tables. The genuinely generic parts (`ReviewRequestStatus`, `ReviewerType`) were extracted from `app/core/resume.py` into `app/core/review.py` so both review services share one definition of the lifecycle and reviewer-type enums without sharing a table.
+
+### The URL/review consistency invariant
+
+A candidate has exactly **one** `LinkedInProfile` row (not versioned — editing updates `profile_url` in place). The invariant the brief calls out — *a review result must never be presented as belonging to a different URL than it was actually requested against* — is solved without versioning the profile at all: `LinkedInReviewRequest.profile_url_snapshot` freezes the URL at the moment a review is requested. A review is forever about its snapshot, regardless of what the candidate edits afterward.
+
+On top of that (a UX safeguard, not a data-integrity requirement, since the snapshot already makes misattribution impossible): editing the URL while a review is `REQUESTED` or `IN_REVIEW` is rejected with a 409 (`app/services/linkedin.py::ActiveReviewBlocksEditError`) — the candidate can't change what they're pointing at while something is actively evaluating it. Editing is allowed again once that review reaches `COMPLETED`.
+
+### Scope and non-goals
+
+Same principle as Resume Centre: Launchpad owns the URL, the review workflow, and presenting feedback. It does **not** own LinkedIn scraping, the LinkedIn API, or AI analysis — `normalize_linkedin_url` (`app/core/linkedin.py`) only validates URL *shape* (scheme/host/path), never fetches the URL or calls any LinkedIn service. `LinkedInReviewResult.reviewer_type` supports `HUMAN`/`AI`/`HYBRID` for the same future-proofing reason as Resume's, but this phase only ever writes `HUMAN` results, manually, exactly as Phase 5 does — there is no reviewer portal here either.
 
 ## Notes
 

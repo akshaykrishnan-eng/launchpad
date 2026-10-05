@@ -6,12 +6,12 @@ See the [repository README](../../README.md) for setup and development instructi
 
 ## Structure
 
-- `app/api/` — route definitions (`auth.py`, `candidate.py`, `resumes.py`, `rbac_demo.py`, `health.py`) and shared dependencies (`deps.py`: `get_current_user`, `require_role`, `get_current_candidate_profile`)
-- `app/core/` — configuration, JWT/password hashing (`security.py`), fixed role names (`roles.py`), candidate status enums (`candidate.py`), resume status/upload-validation (`resume.py`)
+- `app/api/` — route definitions (`auth.py`, `candidate.py`, `resumes.py`, `linkedin.py`, `rbac_demo.py`, `health.py`) and shared dependencies (`deps.py`: `get_current_user`, `require_role`, `get_current_candidate_profile`)
+- `app/core/` — configuration, JWT/password hashing (`security.py`), fixed role names (`roles.py`), candidate status enums (`candidate.py`), resume status/upload-validation (`resume.py`), LinkedIn URL validation (`linkedin.py`), the shared review-lifecycle/reviewer-type enums (`review.py`)
 - `app/db/` — database session/engine setup
-- `app/models/` — SQLAlchemy models: `User`, `Role`, `UserRole`, `RefreshToken`, `CandidateProfile`, `Education`, `WorkExperience`, `Skill`, `CandidateSkill`, `CareerPreference`, `Resume`, `ReviewRequest`, `ReviewResult`
-- `app/schemas/` — Pydantic schemas (`auth.py`, `candidate.py`, `dashboard.py`, `resume.py`)
-- `app/services/` — business logic, kept out of routes and `main.py`: `auth.py`, `roles.py`, `candidate_profile.py`, `education.py`, `skills.py`, `work_experience.py`, `career_preferences.py`, `profile_completion.py`, `next_action.py`, `dashboard.py`, `resume.py`, `resume_review.py`, `resume_storage.py`
+- `app/models/` — SQLAlchemy models: `User`, `Role`, `UserRole`, `RefreshToken`, `CandidateProfile`, `Education`, `WorkExperience`, `Skill`, `CandidateSkill`, `CareerPreference`, `Resume`, `ReviewRequest`, `ReviewResult`, `LinkedInProfile`, `LinkedInReviewRequest`, `LinkedInReviewResult`
+- `app/schemas/` — Pydantic schemas (`auth.py`, `candidate.py`, `dashboard.py`, `resume.py`, `linkedin.py`)
+- `app/services/` — business logic, kept out of routes and `main.py`: `auth.py`, `roles.py`, `candidate_profile.py`, `education.py`, `skills.py`, `work_experience.py`, `career_preferences.py`, `profile_completion.py`, `next_action.py`, `dashboard.py`, `resume.py`, `resume_review.py`, `resume_storage.py`, `linkedin.py`, `linkedin_review.py`
 - `migrations/` — Alembic migrations
 - `tests/` — pytest tests
 
@@ -38,6 +38,9 @@ Versioned application APIs live under `/api/v1`; `/health` stays unversioned as 
 | GET | `/api/v1/candidate/resumes/{id}/download` | candidate | Streams the file; 404 if not owned |
 | POST | `/api/v1/candidate/resumes/{id}/review` | candidate | Request a review (409 if one is already active) |
 | GET | `/api/v1/candidate/resumes/{id}/review` | candidate | Latest review + result (`null` if none requested yet) |
+| GET/PUT | `/api/v1/candidate/linkedin` | candidate | Current LinkedIn URL (`null` if none added yet); `PUT` rejects an edit while a review is active (409) |
+| POST | `/api/v1/candidate/linkedin/review` | candidate | Request a review of the current URL (404 if no URL yet, 409 if one is already active) |
+| GET | `/api/v1/candidate/linkedin/review` | candidate | Latest review + result (`null` if none requested yet) |
 | GET | `/api/v1/rbac-demo/admin-only` | access token + `ADMIN`/`SUPER_ADMIN` role | Minimal proof that `require_role()` works (403 for other roles) |
 
 ## Local development (without Docker)
@@ -67,3 +70,7 @@ The six system roles (`CANDIDATE`, `INTERVIEWER`, `CAREER_COACH`, `RECRUITER`, `
 ## Resume storage
 
 Resumes are stored on local disk behind a small `ResumeStorage` protocol (`app/services/resume_storage.py`), backed by the `resume_storage` Docker volume — see the root README's [Resume Centre](../../README.md#resume-centre) section for the full design (versioning/review concurrency, path-traversal protections, and why there's no reviewer-facing endpoint yet).
+
+## LinkedIn review architecture
+
+`LinkedInReviewRequest`/`LinkedInReviewResult` are structural twins of Resume's `ReviewRequest`/`ReviewResult` (own tables, not a shared polymorphic one), sharing only the generic `ReviewRequestStatus`/`ReviewerType` enums (`app/core/review.py`). See the root README's [LinkedIn Centre](../../README.md#linkedin-centre) section for why, and for how a review stays correctly attached to the URL it was requested against even after the candidate edits their current URL.

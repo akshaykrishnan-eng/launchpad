@@ -1,26 +1,43 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { redirect, getAccessToken, getServerDashboard, getServerResumes } = vi.hoisted(() => ({
+const {
+  redirect,
+  getAccessToken,
+  getServerDashboard,
+  getServerResumes,
+  getServerLinkedInProfile,
+  getServerLinkedInReview,
+} = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   }),
   getAccessToken: vi.fn(),
   getServerDashboard: vi.fn(),
   getServerResumes: vi.fn(),
+  getServerLinkedInProfile: vi.fn(),
+  getServerLinkedInReview: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ redirect, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/session", () => ({ getAccessToken }));
 vi.mock("@/lib/candidate/backend", () => ({ getServerDashboard }));
 vi.mock("@/lib/resume/backend", () => ({ getServerResumes }));
+vi.mock("@/lib/linkedin/backend", () => ({ getServerLinkedInProfile, getServerLinkedInReview }));
 
 import CandidateDashboardPage from "./page";
 
 afterEach(() => {
+  // redirect keeps its throw-on-call implementation (set above via
+  // vi.hoisted) across tests, so it's only cleared, not reset. The
+  // rest have no fixed implementation, so resetting them (not just
+  // clearing call history) prevents a resolved value configured in
+  // one test from leaking into the next.
   redirect.mockClear();
-  getAccessToken.mockClear();
-  getServerDashboard.mockClear();
-  getServerResumes.mockClear();
+  getAccessToken.mockReset();
+  getServerDashboard.mockReset();
+  getServerResumes.mockReset();
+  getServerLinkedInProfile.mockReset();
+  getServerLinkedInReview.mockReset();
 });
 
 const SAMPLE_DASHBOARD = {
@@ -143,13 +160,14 @@ describe("CandidateDashboardPage", () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
     getServerResumes.mockResolvedValue([]);
+    getServerLinkedInProfile.mockResolvedValue(null);
 
     render(await CandidateDashboardPage());
 
-    for (const title of ["LinkedIn", "Mock Interviews", "Events", "Career Coaching", "Jobs"]) {
+    for (const title of ["Mock Interviews", "Events", "Career Coaching", "Jobs"]) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
-    expect(screen.getAllByText("Coming soon")).toHaveLength(5);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(4);
   });
 
   it("shows the Resume module with real state instead of a placeholder", async () => {
@@ -184,6 +202,58 @@ describe("CandidateDashboardPage", () => {
     render(await CandidateDashboardPage());
 
     expect(screen.getByText("Not uploaded yet")).toBeInTheDocument();
+  });
+
+  it("shows an honest empty state for the LinkedIn module when no URL has been added", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerLinkedInProfile.mockResolvedValue(null);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("Not added")).toBeInTheDocument();
+  });
+
+  it("shows the LinkedIn module with real review-in-progress state", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerLinkedInProfile.mockResolvedValue({
+      id: "li1",
+      profile_url: "https://linkedin.com/in/example",
+      created_at: "x",
+      updated_at: "x",
+    });
+    getServerLinkedInReview.mockResolvedValue({
+      id: "r1",
+      status: "REQUESTED",
+      profile_url_snapshot: "https://linkedin.com/in/example",
+      requested_at: "x",
+      started_at: null,
+      completed_at: null,
+      result: null,
+    });
+
+    render(await CandidateDashboardPage());
+
+    const linkedInLinks = screen.getAllByRole("link", { name: /linkedin/i });
+    const linkedInCard = linkedInLinks.find((link) => link.getAttribute("href") === "/app/linkedin");
+    expect(linkedInCard).toBeDefined();
+    expect(screen.getByText("Review in progress")).toBeInTheDocument();
+  });
+
+  it("shows the LinkedIn module as 'Added' when a URL exists but no review was requested", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerLinkedInProfile.mockResolvedValue({
+      id: "li1",
+      profile_url: "https://linkedin.com/in/example",
+      created_at: "x",
+      updated_at: "x",
+    });
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("Added")).toBeInTheDocument();
   });
 
   it("lays out cards with a reflowing grid rather than a fixed desktop width", async () => {

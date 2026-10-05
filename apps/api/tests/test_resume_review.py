@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.resume import ReviewerType
+from app.core.review import ReviewerType
 from app.db.session import AsyncSessionLocal
 from app.models.review_request import ReviewRequest
 from app.services import resume_review as review_service

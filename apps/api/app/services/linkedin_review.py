@@ -5,45 +5,51 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.resume import ResumeStatus
 from app.core.review import ReviewerType, ReviewRequestStatus
-from app.models.resume import Resume
-from app.models.review_request import ReviewRequest
-from app.models.review_result import ReviewResult
+from app.models.linkedin_profile import LinkedInProfile
+from app.models.linkedin_review_request import LinkedInReviewRequest
+from app.models.linkedin_review_result import LinkedInReviewResult
 
 
 class DuplicateActiveReviewError(Exception):
-    """A resume already has a review that hasn't reached COMPLETED."""
+    """A LinkedIn profile already has a review that hasn't reached
+    COMPLETED."""
 
 
-async def get_latest_review(db: AsyncSession, resume: Resume) -> ReviewRequest | None:
+async def get_latest_review(
+    db: AsyncSession, linkedin_profile: LinkedInProfile
+) -> LinkedInReviewRequest | None:
     result = await db.execute(
-        select(ReviewRequest)
-        .options(selectinload(ReviewRequest.result))
-        .where(ReviewRequest.resume_id == resume.id)
-        .order_by(ReviewRequest.requested_at.desc())
+        select(LinkedInReviewRequest)
+        .options(selectinload(LinkedInReviewRequest.result))
+        .where(LinkedInReviewRequest.linkedin_profile_id == linkedin_profile.id)
+        .order_by(LinkedInReviewRequest.requested_at.desc())
         .limit(1)
     )
     return result.scalar_one_or_none()
 
 
-async def request_review(db: AsyncSession, resume: Resume) -> ReviewRequest:
-    existing = await get_latest_review(db, resume)
+async def request_review(
+    db: AsyncSession, linkedin_profile: LinkedInProfile
+) -> LinkedInReviewRequest:
+    existing = await get_latest_review(db, linkedin_profile)
     if existing is not None and existing.status != ReviewRequestStatus.COMPLETED:
         raise DuplicateActiveReviewError
 
-    review_request = ReviewRequest(
-        resume_id=resume.id,
-        candidate_profile_id=resume.candidate_profile_id,
+    review_request = LinkedInReviewRequest(
+        linkedin_profile_id=linkedin_profile.id,
+        candidate_profile_id=linkedin_profile.candidate_profile_id,
+        # Frozen at request time: this review is forever about *this*
+        # URL, even if the candidate's current URL changes later.
+        profile_url_snapshot=linkedin_profile.profile_url,
         status=ReviewRequestStatus.REQUESTED,
     )
     db.add(review_request)
-    resume.status = ResumeStatus.UNDER_REVIEW
 
     try:
         await db.flush()
     except IntegrityError as exc:
-        # The partial unique index (one active request per resume)
+        # The partial unique index (one active request per profile)
         # caught a race the status check above missed.
         await db.rollback()
         raise DuplicateActiveReviewError from exc
@@ -53,11 +59,11 @@ async def request_review(db: AsyncSession, resume: Resume) -> ReviewRequest:
     return review_request
 
 
-async def start_review(db: AsyncSession, review_request: ReviewRequest) -> ReviewRequest:
-    """Not exposed through any candidate endpoint in this phase -- a
-    future reviewer/AI-provider integration calls this once work on a
-    request actually begins, without the candidate-facing workflow
-    changing at all."""
+async def start_review(
+    db: AsyncSession, review_request: LinkedInReviewRequest
+) -> LinkedInReviewRequest:
+    """Not exposed through any candidate endpoint in this phase -- same
+    rationale as app/services/resume_review.py::start_review."""
     review_request.status = ReviewRequestStatus.IN_REVIEW
     review_request.started_at = datetime.now(UTC)
     await db.commit()
@@ -67,7 +73,7 @@ async def start_review(db: AsyncSession, review_request: ReviewRequest) -> Revie
 
 async def complete_review(
     db: AsyncSession,
-    review_request: ReviewRequest,
+    review_request: LinkedInReviewRequest,
     *,
     summary: str,
     reviewer_type: ReviewerType,
@@ -75,12 +81,11 @@ async def complete_review(
     strengths: list[str] | None = None,
     improvements: list[str] | None = None,
     recommendations: list[str] | None = None,
-) -> ReviewResult:
-    """Also not exposed through any candidate endpoint: in V1 there is
-    no reviewer portal, so a completed result is written through this
-    function directly (e.g. by a future reviewer tool, or manually for
-    verification) -- never fabricated by the API itself."""
-    result = ReviewResult(
+) -> LinkedInReviewResult:
+    """Not exposed through any candidate endpoint: written manually (or
+    by a future reviewer tool) exactly as in Phase 5 -- never fabricated
+    by the API itself."""
+    result = LinkedInReviewResult(
         review_request_id=review_request.id,
         score=score,
         summary=summary,
@@ -93,10 +98,6 @@ async def complete_review(
 
     review_request.status = ReviewRequestStatus.COMPLETED
     review_request.completed_at = datetime.now(UTC)
-
-    resume_result = await db.execute(select(Resume).where(Resume.id == review_request.resume_id))
-    resume = resume_result.scalar_one()
-    resume.status = ResumeStatus.COMPLETED
 
     await db.commit()
     await db.refresh(result)
