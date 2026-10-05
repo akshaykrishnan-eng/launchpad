@@ -1,16 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { redirect, getAccessToken, getServerDashboard } = vi.hoisted(() => ({
+const { redirect, getAccessToken, getServerDashboard, getServerResumes } = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   }),
   getAccessToken: vi.fn(),
   getServerDashboard: vi.fn(),
+  getServerResumes: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ redirect, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/session", () => ({ getAccessToken }));
 vi.mock("@/lib/candidate/backend", () => ({ getServerDashboard }));
+vi.mock("@/lib/resume/backend", () => ({ getServerResumes }));
 
 import CandidateDashboardPage from "./page";
 
@@ -18,6 +20,7 @@ afterEach(() => {
   redirect.mockClear();
   getAccessToken.mockClear();
   getServerDashboard.mockClear();
+  getServerResumes.mockClear();
 });
 
 const SAMPLE_DASHBOARD = {
@@ -136,16 +139,51 @@ describe("CandidateDashboardPage", () => {
     expect(screen.queryByText("Complete Profile →")).not.toBeInTheDocument();
   });
 
-  it("shows every future module as a non-functional placeholder", async () => {
+  it("shows every still-unimplemented module as a non-functional placeholder", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerResumes.mockResolvedValue([]);
 
     render(await CandidateDashboardPage());
 
-    for (const title of ["Resume", "LinkedIn", "Mock Interviews", "Events", "Career Coaching", "Jobs"]) {
+    for (const title of ["LinkedIn", "Mock Interviews", "Events", "Career Coaching", "Jobs"]) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
-    expect(screen.getAllByText("Coming soon")).toHaveLength(6);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(5);
+  });
+
+  it("shows the Resume module with real state instead of a placeholder", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerResumes.mockResolvedValue([
+      {
+        id: "r1",
+        version: 1,
+        original_filename: "resume.pdf",
+        content_type: "application/pdf",
+        file_size: 100,
+        status: "UNDER_REVIEW",
+        uploaded_at: "2026-09-10T00:00:00Z",
+        is_latest: true,
+      },
+    ]);
+
+    render(await CandidateDashboardPage());
+
+    const resumeLinks = screen.getAllByRole("link", { name: /resume/i });
+    const resumeCard = resumeLinks.find((link) => link.getAttribute("href") === "/app/resume");
+    expect(resumeCard).toBeDefined();
+    expect(screen.getByText("Review in progress")).toBeInTheDocument();
+  });
+
+  it("shows an honest empty state for the Resume module when none has been uploaded", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerResumes.mockResolvedValue([]);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("Not uploaded yet")).toBeInTheDocument();
   });
 
   it("lays out cards with a reflowing grid rather than a fixed desktop width", async () => {

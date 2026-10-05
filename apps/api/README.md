@@ -6,18 +6,18 @@ See the [repository README](../../README.md) for setup and development instructi
 
 ## Structure
 
-- `app/api/` — route definitions (`auth.py`, `rbac_demo.py`, `health.py`) and shared dependencies (`deps.py`: `get_current_user`, `require_role`)
-- `app/core/` — configuration, JWT/password hashing (`security.py`), fixed role names (`roles.py`)
+- `app/api/` — route definitions (`auth.py`, `candidate.py`, `resumes.py`, `rbac_demo.py`, `health.py`) and shared dependencies (`deps.py`: `get_current_user`, `require_role`, `get_current_candidate_profile`)
+- `app/core/` — configuration, JWT/password hashing (`security.py`), fixed role names (`roles.py`), candidate status enums (`candidate.py`), resume status/upload-validation (`resume.py`)
 - `app/db/` — database session/engine setup
-- `app/models/` — SQLAlchemy models: `User`, `Role`, `UserRole`, `RefreshToken`
-- `app/schemas/` — Pydantic schemas
-- `app/services/` — business logic, kept out of routes and `main.py` (`auth.py`, `roles.py`)
+- `app/models/` — SQLAlchemy models: `User`, `Role`, `UserRole`, `RefreshToken`, `CandidateProfile`, `Education`, `WorkExperience`, `Skill`, `CandidateSkill`, `CareerPreference`, `Resume`, `ReviewRequest`, `ReviewResult`
+- `app/schemas/` — Pydantic schemas (`auth.py`, `candidate.py`, `dashboard.py`, `resume.py`)
+- `app/services/` — business logic, kept out of routes and `main.py`: `auth.py`, `roles.py`, `candidate_profile.py`, `education.py`, `skills.py`, `work_experience.py`, `career_preferences.py`, `profile_completion.py`, `next_action.py`, `dashboard.py`, `resume.py`, `resume_review.py`, `resume_storage.py`
 - `migrations/` — Alembic migrations
-- `tests/` — pytest tests (registration, login, tokens, authorization, current-user)
+- `tests/` — pytest tests
 
 ## API endpoints
 
-Versioned application APIs live under `/api/v1`; `/health` stays unversioned as the infrastructure health check.
+Versioned application APIs live under `/api/v1`; `/health` stays unversioned as the infrastructure health check. Every `/api/v1/candidate/*` endpoint requires the `CANDIDATE` role and derives ownership from the authenticated user — none of them accept a candidate/user id from the client.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -26,6 +26,18 @@ Versioned application APIs live under `/api/v1`; `/health` stays unversioned as 
 | POST | `/api/v1/auth/refresh` | refresh token | Rotate a refresh token for a new access/refresh pair |
 | POST | `/api/v1/auth/logout` | refresh token | Revoke a refresh token |
 | GET | `/api/v1/auth/me` | access token | Current user's safe public identity (never a password hash) |
+| GET/PATCH | `/api/v1/candidate/profile` | candidate | Personal info, degree summary, career goal |
+| GET | `/api/v1/candidate/completion` | candidate | Profile completion percentage |
+| GET | `/api/v1/candidate/dashboard` | candidate | Aggregated dashboard: name, completion breakdown, next action |
+| GET/POST/PATCH/DELETE | `/api/v1/candidate/education` | candidate | Education entries (0..n) |
+| GET/POST/DELETE | `/api/v1/candidate/skills` | candidate | Skills (shared catalog + per-candidate link) |
+| GET/POST/PATCH/DELETE | `/api/v1/candidate/experience` | candidate | Work experience (0..n) |
+| GET/PATCH | `/api/v1/candidate/preferences` | candidate | Preferred roles/locations |
+| GET/POST | `/api/v1/candidate/resumes` | candidate | List resume versions / upload a new one (`multipart/form-data`) |
+| GET | `/api/v1/candidate/resumes/{id}` | candidate | One resume's metadata |
+| GET | `/api/v1/candidate/resumes/{id}/download` | candidate | Streams the file; 404 if not owned |
+| POST | `/api/v1/candidate/resumes/{id}/review` | candidate | Request a review (409 if one is already active) |
+| GET | `/api/v1/candidate/resumes/{id}/review` | candidate | Latest review + result (`null` if none requested yet) |
 | GET | `/api/v1/rbac-demo/admin-only` | access token + `ADMIN`/`SUPER_ADMIN` role | Minimal proof that `require_role()` works (403 for other roles) |
 
 ## Local development (without Docker)
@@ -51,3 +63,7 @@ Note: `pytest` needs a real Postgres connection (migrations run and tables are e
 ## Roles
 
 The six system roles (`CANDIDATE`, `INTERVIEWER`, `CAREER_COACH`, `RECRUITER`, `ADMIN`, `SUPER_ADMIN`) are seeded idempotently on every app startup (`app/services/roles.py::seed_roles`, called from `app/main.py`'s lifespan). Re-running startup never duplicates them.
+
+## Resume storage
+
+Resumes are stored on local disk behind a small `ResumeStorage` protocol (`app/services/resume_storage.py`), backed by the `resume_storage` Docker volume — see the root README's [Resume Centre](../../README.md#resume-centre) section for the full design (versioning/review concurrency, path-traversal protections, and why there's no reviewer-facing endpoint yet).

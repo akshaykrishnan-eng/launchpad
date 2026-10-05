@@ -6,13 +6,17 @@ import { FutureModuleCard } from "@/features/dashboard/FutureModuleCard";
 import { NextActionCard } from "@/features/dashboard/NextActionCard";
 import { ProfileCompletionCard } from "@/features/dashboard/ProfileCompletionCard";
 import { ProfileReadiness } from "@/features/dashboard/ProfileReadiness";
+import { ResumeModuleCard } from "@/features/dashboard/ResumeModuleCard";
 import { getServerDashboard } from "@/lib/candidate/backend";
 import { getAccessToken } from "@/lib/auth/session";
+import { getServerResumes } from "@/lib/resume/backend";
 
-// Modules the product plans to add later. Each renders the same honest
+// Modules still genuinely unimplemented. Each renders the same honest
 // "Coming soon" placeholder -- no fake data, no fake functionality --
-// until its own phase actually implements it.
-const FUTURE_MODULES = ["Resume", "LinkedIn", "Mock Interviews", "Events", "Career Coaching", "Jobs"];
+// until its own phase actually implements it. Resume is no longer in
+// this list: Phase 5 implemented it, so it gets a real status card
+// instead (see ResumeModuleCard below).
+const FUTURE_MODULES = ["LinkedIn", "Mock Interviews", "Events", "Career Coaching", "Jobs"];
 
 export default async function CandidateDashboardPage() {
   const accessToken = await getAccessToken();
@@ -21,6 +25,8 @@ export default async function CandidateDashboardPage() {
   }
 
   const dashboard = await getServerDashboard(accessToken);
+  const resumes = await getServerResumes(accessToken);
+  const latestResume = resumes?.find((r) => r.is_latest) ?? null;
 
   if (!dashboard) {
     return (
@@ -60,6 +66,7 @@ export default async function CandidateDashboardPage() {
             gap: "1rem",
           }}
         >
+          <ResumeModuleCard status={latestResume?.status ?? null} />
           {FUTURE_MODULES.map((title) => (
             <FutureModuleCard key={title} title={title} />
           ))}

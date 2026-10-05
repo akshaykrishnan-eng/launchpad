@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
+    # Resume storage. A local directory for now (see
+    # app/services/resume_storage.py) -- swapping in S3/object storage
+    # later means implementing ResumeStorage again, not touching resume
+    # business logic.
+    resume_storage_dir: str = "/app/storage/resumes"
+    resume_max_size_mb: int = 5
+
 
 @lru_cache
 def get_settings() -> Settings:

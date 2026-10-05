@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.candidate_profile import CandidateProfile
@@ -29,7 +30,20 @@ async def get_or_create_profile(db: AsyncSession, user_id: uuid.UUID) -> Candida
 
     profile = CandidateProfile(user_id=user_id)
     db.add(profile)
-    await db.commit()
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Another concurrent call for the same user (e.g. two resume
+        # uploads landing at once on a brand-new candidate) won the
+        # race and created the profile first; the unique constraint on
+        # user_id is the actual source of truth, not the SELECT above.
+        await db.rollback()
+        result = await db.execute(
+            select(CandidateProfile).where(CandidateProfile.user_id == user_id)
+        )
+        return result.scalar_one()
+
     await db.refresh(profile)
     return profile
 

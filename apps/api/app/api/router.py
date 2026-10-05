@@ -4,6 +4,7 @@ from app.api.auth import router as auth_router
 from app.api.candidate import router as candidate_router
 from app.api.health import router as health_router
 from app.api.rbac_demo import router as rbac_demo_router
+from app.api.resumes import router as resumes_router
 
 # /health is infrastructure-level and intentionally unversioned.
 api_router = APIRouter()
@@ -14,5 +15,6 @@ v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(auth_router)
 v1_router.include_router(rbac_demo_router)
 v1_router.include_router(candidate_router)
+v1_router.include_router(resumes_router)
 
 api_router.include_router(v1_router)

@@ -3,7 +3,10 @@
 Development foundation for Ellow Launchpad — a candidate career-launch platform (in future phases).
 
 - **Phase 1**: monorepo structure, a Next.js frontend, a FastAPI backend, PostgreSQL, Docker Compose, and the development workflow.
-- **Phase 2** (this state): authentication and an RBAC foundation — registration, login, access/refresh tokens, a current-user endpoint, and a minimal role-based authorization mechanism. No other business features (candidate profiles, resumes, interviews, etc.) are implemented yet.
+- **Phase 2**: authentication and an RBAC foundation — registration, login, access/refresh tokens, a current-user endpoint, and a minimal role-based authorization mechanism.
+- **Phase 3**: candidate identity — profile, education, skills, work experience, career preferences, a deterministic profile-completion score, and a guided onboarding flow.
+- **Phase 4**: the real candidate dashboard at `/app` — profile completion, readiness breakdown, a deterministic next-action, honest "coming soon" placeholders for unbuilt modules.
+- **Phase 5** (this state): the Resume Centre — upload, versioning, and a manual (non-AI) review workflow. See [Resume Centre](#resume-centre) below. No other business features (interviews, credits, jobs, etc.) are implemented yet.
 
 ## Architecture
 
@@ -29,6 +32,7 @@ The browser only ever talks to Next.js. Next.js's own Route Handlers and Proxy (
 | PyJWT | 2.15.1 (access token signing) |
 | argon2-cffi | 25.1.0 (password hashing, Argon2id — OWASP's current top recommendation; `passlib` was considered but hasn't shipped a release since 2020) |
 | email-validator | 2.3.0 (Pydantic `EmailStr` support) |
+| python-multipart | 0.0.32 (required by FastAPI for `multipart/form-data` resume uploads) |
 
 ## Repository layout
 
@@ -133,6 +137,8 @@ See [.env.example](.env.example) for the full list with defaults:
 - `JWT_ALGORITHM` — JWT signing algorithm (default `HS256`)
 - `ACCESS_TOKEN_EXPIRE_MINUTES` — access token lifetime (default 15)
 - `REFRESH_TOKEN_EXPIRE_DAYS` — refresh token lifetime (default 30)
+- `RESUME_STORAGE_DIR` — local-disk directory resumes are stored under inside the `api` container (default `/app/storage/resumes`, backed by the `resume_storage` named volume)
+- `RESUME_MAX_SIZE_MB` — maximum accepted resume upload size (default 5)
 
 PostgreSQL's port is intentionally not published to the host — only `web` and `api` are reachable outside the Docker network.
 
@@ -160,7 +166,26 @@ Cookie flags: `httpOnly`, `SameSite=Lax`, `Secure` in production only (so plain 
 
 **Frontend route protection is not a security boundary.** The proxy and the `/app` page's redirect are UX — every protected FastAPI endpoint enforces its own authorization independently via `Depends(get_current_user)` / `Depends(require_role(...))`, and will reject an unauthenticated or under-privileged request regardless of what the frontend does.
 
+## Resume Centre
+
+### Scope and non-goals
+
+Launchpad owns resume submission, versioning, review requests, review status, and presenting feedback to the candidate. It deliberately does **not** own AI parsing/scoring — that belongs to a separate Profile Analyzer product that doesn't exist in this codebase yet. The candidate-facing workflow (`UPLOADED → UNDER_REVIEW → COMPLETED`) is provider-agnostic by design: `ReviewResult.reviewer_type` supports `HUMAN`/`AI`/`HYBRID`, but Phase 5 only ever writes `HUMAN` results, and only ever manually (there is no reviewer portal yet — see below).
+
+### Storage
+
+`app/services/resume_storage.py` defines a small `ResumeStorage` protocol (`save`/`open`/`delete`) with one implementation, `LocalFileStorage`, backed by the `resume_storage` Docker volume. Swapping in S3/object storage later means implementing that same protocol again, not touching any resume business logic. Storage keys are always server-generated (`{candidate_profile_id}/{uuid4().hex}{extension}`) — the original filename is stored only for display and is never used as a path, so there's no path-traversal surface.
+
+### Versioning and review-request concurrency
+
+Every upload creates a new version; none are overwritten. The candidate's `CandidateProfile` row is locked (`SELECT ... FOR UPDATE`) for the duration of version-number computation, so two concurrent uploads for the same candidate can't both compute "next version = 2" — backed by a `UNIQUE(candidate_profile_id, version)` constraint as a last-resort safety net. Similarly, at most one non-`COMPLETED` review request can exist per resume, enforced by a Postgres **partial unique index** (`uq_review_requests_active_per_resume ... WHERE status != 'COMPLETED'`), not just an application-level check.
+
+### No reviewer portal yet
+
+`app/services/resume_review.py::start_review` / `complete_review` exist and are tested, but **no API endpoint exposes them** — there is no admin/recruiter/reviewer UI in this phase (out of scope per the brief). A completed review is currently written by calling `complete_review` directly (see the manual-verification steps used during development), which is the intended Phase-5-appropriate way to simulate what a future reviewer tool will do through its own API, without inventing that tool now.
+
 ## Notes
 
 - `packages/` and `infra/` are placeholders for later phases.
 - Promoting a user to a role beyond `CANDIDATE` is currently a manual database operation; there is no admin UI or bootstrap script yet (see [Authentication architecture](#authentication-architecture)).
+- Resume files on disk are not deleted when their database rows are (there is no delete-resume feature in this phase to trigger it) — acceptable for now, worth revisiting if a delete feature is added later.

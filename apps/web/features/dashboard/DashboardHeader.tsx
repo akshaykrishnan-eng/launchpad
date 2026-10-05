@@ -28,6 +28,7 @@ export function DashboardHeader({ firstName }: DashboardHeaderProps) {
 
       <nav aria-label="Dashboard navigation" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem" }}>
         <Link href="/app/profile">My profile</Link>
+        <Link href="/app/resume">Resume Centre</Link>
         <LogoutButton />
       </nav>
     </header>

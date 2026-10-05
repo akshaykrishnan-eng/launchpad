@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg>=0.30",
     "pyjwt>=2.15.1",
     "argon2-cffi>=25.1.0",
+    "python-multipart>=0.0.32",
 ]
 
 [project.optional-dependencies]

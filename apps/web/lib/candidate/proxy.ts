@@ -17,6 +17,11 @@ import { config } from "@/lib/config";
  * matching the "Next.js BFF -> FastAPI /api/v1" architecture: the
  * browser only ever talks to this app's own /api/candidate/* path,
  * never the Docker-internal API hostname, and never holds a token.
+ *
+ * Bodies are forwarded as raw bytes with the original Content-Type in
+ * both directions (not re-encoded as text/JSON), so this same function
+ * also correctly proxies multipart resume uploads and binary resume
+ * downloads, not just JSON candidate/education/etc. calls.
  */
 export async function proxyCandidateRequest(
   request: Request,
@@ -29,16 +34,16 @@ export async function proxyCandidateRequest(
 
   const search = new URL(request.url).search;
   const targetPath = `/api/v1/candidate/${pathSegments.join("/")}${search}`;
-  const body = request.method === "GET" || request.method === "DELETE"
-    ? undefined
-    : await request.text();
+  const hasBody = request.method !== "GET" && request.method !== "DELETE";
+  const body = hasBody ? await request.arrayBuffer() : undefined;
+  const requestContentType = request.headers.get("content-type");
 
   const forward = (token: string) =>
     fetch(`${config.internalApiUrl}${targetPath}`, {
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
-        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(requestContentType ? { "Content-Type": requestContentType } : {}),
       },
       body,
       cache: "no-store",
@@ -64,6 +69,17 @@ export async function proxyCandidateRequest(
 
   if (response.status === 204) {
     return new NextResponse(null, { status: 204 });
+  }
+
+  const responseContentType = response.headers.get("content-type") ?? "";
+  if (!responseContentType.includes("application/json")) {
+    // A file download (or any other non-JSON response): stream the
+    // bytes back as-is rather than trying to parse them as JSON.
+    const bytes = await response.arrayBuffer();
+    const headers: Record<string, string> = { "Content-Type": responseContentType };
+    const disposition = response.headers.get("content-disposition");
+    if (disposition) headers["Content-Disposition"] = disposition;
+    return new NextResponse(bytes, { status: response.status, headers });
   }
 
   const data = await response.json().catch(() => ({}));
