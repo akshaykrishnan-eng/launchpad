@@ -6,10 +6,17 @@ import type {
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
 
+// Pydantic prefixes a field_validator's raised ValueError message with
+// "Value error, " in its 422 response -- strip that off so candidates
+// never see a raw validation-library artifact in their error text.
+function cleanMessage(msg: string): string {
+  return msg.replace(/^Value error,\s*/, "");
+}
+
 function errorMessage(body: LinkedInApiError): string {
   if (!body.detail) return "Something went wrong. Please try again.";
-  if (typeof body.detail === "string") return body.detail;
-  return body.detail.map((e) => e.msg).join("; ");
+  if (typeof body.detail === "string") return cleanMessage(body.detail);
+  return body.detail.map((e) => cleanMessage(e.msg)).join("; ");
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {

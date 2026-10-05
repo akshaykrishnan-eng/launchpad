@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { LinkedInReviewResult } from "@/features/linkedin/LinkedInReviewResult";
+import { LinkedInReviewStatusBadge } from "@/features/linkedin/LinkedInReviewStatusBadge";
 import { requestLinkedInReview } from "@/lib/linkedin/client";
 import type { LinkedInProfile, LinkedInReviewRequest } from "@/lib/linkedin/types";
 
@@ -13,12 +14,6 @@ type LinkedInProfileCardProps = {
   onReviewRequested: (review: LinkedInReviewRequest) => void;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  REQUESTED: "Under Review",
-  IN_REVIEW: "Under Review",
-  COMPLETED: "Review Completed",
-};
-
 export function LinkedInProfileCard({
   profile,
   review,
@@ -27,6 +22,7 @@ export function LinkedInProfileCard({
 }: LinkedInProfileCardProps) {
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const isReviewActive = review !== null && review.status !== "COMPLETED";
   const displayUrl = profile.profile_url.replace(/^https?:\/\//, "");
@@ -77,11 +73,20 @@ export function LinkedInProfileCard({
 
       {review && (
         <div>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>Review Status</h3>
-          <p>{STATUS_LABELS[review.status]}</p>
+          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Review Status</h3>
+          <LinkedInReviewStatusBadge status={review.status} />
 
           {review.status === "COMPLETED" && review.result && (
-            <LinkedInReviewResult result={review.result} />
+            <div style={{ marginTop: "0.75rem" }}>
+              <button type="button" onClick={() => setShowFeedback((v) => !v)}>
+                {showFeedback ? "Hide Feedback" : "View Feedback"}
+              </button>
+              {showFeedback && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <LinkedInReviewResult result={review.result} />
+                </div>
+              )}
+            </div>
           )}
 
           {review.status === "COMPLETED" && !review.result && (

@@ -120,7 +120,7 @@ describe("LinkedInCentre", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request review/i }));
 
-    expect(await screen.findByText("Under Review")).toBeInTheDocument();
+    expect(await screen.findByText("Status: Under review")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /request review/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /edit url/i })).toBeDisabled();
   });
@@ -150,7 +150,12 @@ describe("LinkedInCentre", () => {
 
     render(<LinkedInCentre />);
 
-    expect(await screen.findByText("Review Completed")).toBeInTheDocument();
+    expect(await screen.findByText("Status: Review completed")).toBeInTheDocument();
+    // Feedback is collapsed by default, same as Resume Centre.
+    expect(screen.queryByText("Clear headline.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /view feedback/i }));
+
     expect(screen.getByText("76")).toBeInTheDocument();
     expect(screen.getByText("Clear headline.")).toBeInTheDocument();
     expect(screen.getByText("Strong headline")).toBeInTheDocument();

@@ -27,7 +27,7 @@ export function LinkedInReviewResult({ result }: { result: LinkedInReviewResultT
 
       {result.improvements.length > 0 && (
         <section>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>Areas to Improve</h3>
+          <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>Areas for improvement</h3>
           <ul>
             {result.improvements.map((item) => (
               <li key={item}>{item}</li>
