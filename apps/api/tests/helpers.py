@@ -15,3 +15,14 @@ def register_and_login(client: TestClient, email: str, password: str = DEFAULT_P
     register(client, email, password)
     response = login(client, email, password)
     return response.json()
+
+
+def auth_headers(tokens: dict) -> dict:
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+def candidate_client(client: TestClient, email: str, password: str = DEFAULT_PASSWORD) -> dict:
+    """Registers+logs in a fresh candidate and returns ready-to-use
+    Authorization headers for it."""
+    tokens = register_and_login(client, email, password)
+    return auth_headers(tokens)

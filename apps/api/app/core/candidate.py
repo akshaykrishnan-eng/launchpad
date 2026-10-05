@@ -1,0 +1,13 @@
+from enum import StrEnum
+
+
+class CandidateStatus(StrEnum):
+    STUDENT = "STUDENT"
+    RECENTLY_GRADUATED = "RECENTLY_GRADUATED"
+    LOOKING_FOR_FIRST_JOB = "LOOKING_FOR_FIRST_JOB"
+    CURRENTLY_EMPLOYED = "CURRENTLY_EMPLOYED"
+
+
+class EducationStatus(StrEnum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"

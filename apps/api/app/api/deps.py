@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.roles import RoleName
 from app.core.security import InvalidTokenError, decode_access_token
 from app.db.session import get_db
+from app.models.candidate_profile import CandidateProfile
 from app.models.user import User
 from app.services.auth import get_user_by_id, user_role_names
+from app.services.candidate_profile import get_or_create_profile
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -63,3 +65,13 @@ def require_role(*allowed_roles: RoleName):
         return current_user
 
     return _dependency
+
+
+async def get_current_candidate_profile(
+    current_user: User = Depends(require_role(RoleName.CANDIDATE)),
+    db: AsyncSession = Depends(get_db),
+) -> CandidateProfile:
+    """The profile is always derived from the authenticated user's id,
+    never from a client-supplied id -- this is the ownership boundary
+    every candidate endpoint is built on."""
+    return await get_or_create_profile(db, current_user.id)

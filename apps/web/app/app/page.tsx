@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LogoutButton } from "@/features/auth/LogoutButton";
@@ -34,6 +35,10 @@ export default async function ProtectedAppPage() {
         <br />
         <strong>{user.roles.join(", ")}</strong>
       </p>
+      <div style={{ display: "flex", gap: "1rem" }}>
+        <Link href="/onboarding">Candidate onboarding</Link>
+        <Link href="/app/profile">My profile</Link>
+      </div>
       <LogoutButton />
     </main>
   );
