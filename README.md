@@ -10,6 +10,20 @@ This is **Phase 1**: monorepo structure, a Next.js frontend, a FastAPI backend, 
 Browser → Next.js (apps/web) → FastAPI (apps/api) → PostgreSQL
 ```
 
+## Technology versions
+
+| Technology | Version |
+|---|---|
+| Next.js | 16.3.8 |
+| Node.js | 24.x LTS |
+| Python | 3.13 |
+| FastAPI | ≥0.142.2 |
+| PostgreSQL | 18.x |
+| SQLAlchemy | 2.1.3 |
+| Alembic | 1.20.x |
+| TypeScript | 5.9.3 (latest stable compatible with Next.js's ESLint tooling; TypeScript 7 is newer but not yet supported by `typescript-eslint`) |
+| Docker Compose | latest stable in the dev environment (no `version:` pinned in `docker-compose.yml`) |
+
 ## Repository layout
 
 ```
