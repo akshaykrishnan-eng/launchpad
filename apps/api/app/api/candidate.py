@@ -22,11 +22,13 @@ from app.schemas.candidate import (
     WorkExperienceRead,
     WorkExperienceUpdate,
 )
+from app.schemas.dashboard import DashboardResponse
 from app.services import candidate_profile as profile_service
 from app.services import career_preferences as preference_service
 from app.services import education as education_service
 from app.services import skills as skills_service
 from app.services import work_experience as experience_service
+from app.services.dashboard import build_dashboard
 
 router = APIRouter(prefix="/candidate", tags=["candidate"])
 
@@ -84,6 +86,14 @@ async def get_completion(
 ) -> ProfileCompletionRead:
     completion = await profile_service.calculate_completion_for(db, profile)
     return ProfileCompletionRead(completion_percentage=completion)
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+async def get_dashboard(
+    profile: CandidateProfile = Depends(get_current_candidate_profile),
+    db: AsyncSession = Depends(get_db),
+) -> DashboardResponse:
+    return await build_dashboard(db, profile)
 
 
 # --- Education ----------------------------------------------------------

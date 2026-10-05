@@ -9,7 +9,11 @@ from app.models.career_preference import CareerPreference
 from app.models.education import Education
 from app.models.work_experience import WorkExperience
 from app.schemas.candidate import CandidateProfileUpdate
-from app.services.profile_completion import CompletionInput, calculate_profile_completion
+from app.services.profile_completion import (
+    CompletionBreakdown,
+    CompletionInput,
+    calculate_profile_completion_breakdown,
+)
 
 
 async def get_or_create_profile(db: AsyncSession, user_id: uuid.UUID) -> CandidateProfile:
@@ -40,7 +44,7 @@ async def update_profile(
     return profile
 
 
-async def calculate_completion_for(db: AsyncSession, profile: CandidateProfile) -> int:
+async def _build_completion_input(db: AsyncSession, profile: CandidateProfile) -> CompletionInput:
     education_count = (
         await db.execute(
             select(func.count())
@@ -68,12 +72,20 @@ async def calculate_completion_for(db: AsyncSession, profile: CandidateProfile) 
         )
     ).scalar_one_or_none()
 
-    return calculate_profile_completion(
-        CompletionInput(
-            profile=profile,
-            education_count=education_count,
-            skill_count=skill_count,
-            experience_count=experience_count,
-            career_preference=preference,
-        )
+    return CompletionInput(
+        profile=profile,
+        education_count=education_count,
+        skill_count=skill_count,
+        experience_count=experience_count,
+        career_preference=preference,
     )
+
+
+async def get_completion_breakdown_for(
+    db: AsyncSession, profile: CandidateProfile
+) -> CompletionBreakdown:
+    return calculate_profile_completion_breakdown(await _build_completion_input(db, profile))
+
+
+async def calculate_completion_for(db: AsyncSession, profile: CandidateProfile) -> int:
+    return (await get_completion_breakdown_for(db, profile)).percentage

@@ -65,3 +65,37 @@ export type ProfileCompletion = {
 };
 
 export type CandidateApiError = { detail?: string | { msg: string; loc: unknown[] }[] };
+
+export type NextActionType =
+  | "PERSONAL_INFORMATION"
+  | "EDUCATION"
+  | "SKILLS"
+  | "WORK_EXPERIENCE"
+  | "CAREER_PREFERENCES"
+  | "CAREER_GOAL"
+  | "PROFILE_COMPLETE";
+
+export type ProfileCompletionComponents = {
+  personal_information: boolean;
+  education: boolean;
+  skills: boolean;
+  experience: boolean;
+  career_preferences: boolean;
+  career_goal: boolean;
+};
+
+export type NextAction = {
+  type: NextActionType;
+  title: string;
+  description: string;
+  route: string;
+};
+
+export type Dashboard = {
+  candidate: { first_name: string | null; last_name: string | null };
+  profile_completion: {
+    percentage: number;
+    components: ProfileCompletionComponents;
+  };
+  next_action: NextAction;
+};

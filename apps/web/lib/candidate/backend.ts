@@ -5,6 +5,7 @@ import type {
   CandidateProfile,
   CandidateSkill,
   CareerPreference,
+  Dashboard,
   Education,
   ProfileCompletion,
   WorkExperience,
@@ -44,4 +45,8 @@ export function getServerExperience(accessToken: string) {
 
 export function getServerPreferences(accessToken: string) {
   return callApi<CareerPreference>("/api/v1/candidate/preferences", accessToken);
+}
+
+export function getServerDashboard(accessToken: string) {
+  return callApi<Dashboard>("/api/v1/candidate/dashboard", accessToken);
 }
