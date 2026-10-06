@@ -18,13 +18,19 @@ export type BackendResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: string };
 
+function errorMessage(body: ApiErrorBody): string {
+  if (!body.detail) return "Request failed";
+  if (typeof body.detail === "string") return body.detail;
+  return body.detail.map((e) => e.msg).join("; ");
+}
+
 async function toResult<T>(response: Response): Promise<BackendResult<T>> {
   if (response.ok) {
     const data = response.status === 204 ? (undefined as T) : ((await response.json()) as T);
     return { ok: true, status: response.status, data };
   }
   const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
-  return { ok: false, status: response.status, error: body.detail ?? "Request failed" };
+  return { ok: false, status: response.status, error: errorMessage(body) };
 }
 
 export async function registerUser(

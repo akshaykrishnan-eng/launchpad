@@ -13,5 +13,5 @@ export type TokenResponse = {
 };
 
 export type ApiErrorBody = {
-  detail?: string;
+  detail?: string | { msg: string; loc: unknown[] }[];
 };
