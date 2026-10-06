@@ -17,6 +17,18 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
+    # A client can legitimately fire more than one request at the exact
+    # moment its access token expires (parallel page sub-resources, a
+    # prefetched navigation landing next to the real one, two open tabs).
+    # Both reach refresh rotation with the same still-cookie-valid raw
+    # token; whichever loses the race presents an already-rotated token.
+    # Without this grace window, reuse detection treats that as theft and
+    # revokes the whole session -- including the token the winner just
+    # received -- logging an honestly-authenticated user out. A short
+    # window (mirroring Auth0's "reuse interval" for rotating refresh
+    # tokens) tolerates exactly that one-hop race while still nuking the
+    # chain for reuse that shows up later, once the window has closed.
+    refresh_token_reuse_grace_seconds: int = 5
 
     # Resume storage. A local directory for now (see
     # app/services/resume_storage.py) -- swapping in S3/object storage

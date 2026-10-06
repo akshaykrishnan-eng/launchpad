@@ -140,6 +140,21 @@ async def _get_refresh_token_by_raw(db: AsyncSession, raw_token: str) -> Refresh
     return result.scalar_one_or_none()
 
 
+async def _issue_token_pair_from(db: AsyncSession, current: RefreshToken) -> TokenResponse:
+    user = await get_user_by_id(db, current.user_id)
+    if user is None or not user.is_active:
+        raise InvalidRefreshTokenError
+
+    access_token, expires_in = create_access_token(user.id)
+    _, raw_refresh_token = await _persist_refresh_token(db, user.id, replaces_id=current.id)
+    await db.commit()
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=raw_refresh_token,
+        expires_in=expires_in,
+    )
+
+
 async def rotate_refresh_token(db: AsyncSession, raw_token: str) -> TokenResponse:
     token = await _get_refresh_token_by_raw(db, raw_token)
     if token is None:
@@ -148,9 +163,22 @@ async def rotate_refresh_token(db: AsyncSession, raw_token: str) -> TokenRespons
     now = datetime.now(UTC)
 
     if token.revoked_at is not None:
-        # This exact token was already rotated out (or revoked via logout)
-        # and is being presented again. Treat the whole chain as
-        # compromised and revoke every active token for this user.
+        grace_seconds = settings.refresh_token_reuse_grace_seconds
+        grace_cutoff = token.revoked_at + timedelta(seconds=grace_seconds)
+        if token.replaced_by_id is not None and now <= grace_cutoff:
+            replacement = await db.get(RefreshToken, token.replaced_by_id)
+            if replacement is not None and replacement.revoked_at is None:
+                # token was rotated out moments ago and nothing has used
+                # its replacement yet -- this is the losing side of a
+                # same-token race, not reuse. Fast-forward onto the
+                # chain's current tip instead of nuking the session.
+                return await _issue_token_pair_from(db, replacement)
+
+        # Either outside the grace window or the replacement has itself
+        # already moved on (someone has used this chain since the race
+        # window would have applied) -- this is genuine reuse of an
+        # already-rotated token. Treat the whole chain as compromised and
+        # revoke every active token for this user.
         result = await db.execute(
             select(RefreshToken).where(
                 RefreshToken.user_id == token.user_id, RefreshToken.revoked_at.is_(None)
@@ -164,18 +192,7 @@ async def rotate_refresh_token(db: AsyncSession, raw_token: str) -> TokenRespons
     if token.expires_at < now:
         raise InvalidRefreshTokenError
 
-    user = await get_user_by_id(db, token.user_id)
-    if user is None or not user.is_active:
-        raise InvalidRefreshTokenError
-
-    access_token, expires_in = create_access_token(user.id)
-    _, raw_refresh_token = await _persist_refresh_token(db, user.id, replaces_id=token.id)
-    await db.commit()
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=raw_refresh_token,
-        expires_in=expires_in,
-    )
+    return await _issue_token_pair_from(db, token)
 
 
 async def revoke_refresh_token(db: AsyncSession, raw_token: str) -> None:
