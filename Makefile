@@ -1,4 +1,4 @@
-.PHONY: start stop restart logs logs-api logs-web logs-db migrate migration test lint
+.PHONY: start stop restart logs logs-api logs-web logs-db migrate migration test lint create-superadmin
 
 # Start the full development environment (builds images if needed).
 start:
@@ -43,3 +43,11 @@ test:
 lint:
 	docker compose exec api ruff check .
 	cd apps/web && npm run lint
+
+# Create a new SUPER_ADMIN user, or grant SUPER_ADMIN to an existing one:
+#   make create-superadmin email=admin@example.com password=supersecret
+# password is only required the first time (i.e. when the user doesn't
+# already exist); omit it to just promote an existing user.
+create-superadmin:
+	docker compose exec api python -m app.scripts.create_superadmin \
+		--email "$(email)" $(if $(password),--password "$(password)",)
