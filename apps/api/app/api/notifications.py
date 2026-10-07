@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,12 +21,13 @@ _PAGE_SIZE = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE)
 async def list_notifications(
     page: int = _PAGE,
     page_size: int = _PAGE_SIZE,
+    status: Literal["all", "unread", "read"] = Query(default="all"),
     profile: CandidateProfile = Depends(get_current_candidate_profile),
     db: AsyncSession = Depends(get_db),
 ) -> Page[NotificationRead]:
     page_size = clamp_page_size(page_size)
     notifications, total = await notification_service.list_notifications_page(
-        db, profile.user_id, page=page, page_size=page_size
+        db, profile.user_id, page=page, page_size=page_size, status=status
     )
     return Page(
         items=[NotificationRead.model_validate(n) for n in notifications],

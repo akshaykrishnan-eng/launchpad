@@ -188,16 +188,29 @@ async def notify_linkedin_review_completed(
 
 
 async def list_notifications_page(
-    db: AsyncSession, recipient_user_id: uuid.UUID, *, page: int, page_size: int
+    db: AsyncSession,
+    recipient_user_id: uuid.UUID,
+    *,
+    page: int,
+    page_size: int,
+    status: str = "all",
 ) -> tuple[list[Notification], int]:
+    """`status` narrows to unread (`read_at IS NULL`) or read
+    (`read_at IS NOT NULL`); `"all"` applies no read-state filter. Each
+    status paginates independently -- `total` always reflects the count
+    for the requested status, not the full history."""
     base_query = select(Notification).where(Notification.recipient_user_id == recipient_user_id)
+    if status == "unread":
+        base_query = base_query.where(Notification.read_at.is_(None))
+    elif status == "read":
+        base_query = base_query.where(Notification.read_at.isnot(None))
 
     total = (
         await db.execute(select(func.count()).select_from(base_query.subquery()))
     ).scalar_one()
 
     result = await db.execute(
-        base_query.order_by(Notification.created_at.desc())
+        base_query.order_by(Notification.created_at.desc(), Notification.id.desc())
         .limit(page_size)
         .offset((page - 1) * page_size)
     )

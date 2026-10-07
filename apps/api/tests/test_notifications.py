@@ -150,6 +150,112 @@ async def test_notifications_are_paginated(client: TestClient) -> None:
     assert len(second_page.json()["items"]) == 1
 
 
+async def test_notifications_newest_first(client: TestClient) -> None:
+    email = "notif.order@example.com"
+    headers = candidate_client(client, email)
+    for i in range(3):
+        await _create_notification(email, title=f"Ordered {i}")
+
+    body = client.get(BASE, headers=headers).json()
+    titles = [item["title"] for item in body["items"]]
+    assert titles == ["Ordered 2", "Ordered 1", "Ordered 0"]
+
+
+async def test_notifications_pages_do_not_overlap(client: TestClient) -> None:
+    email = "notif.nooverlap@example.com"
+    headers = candidate_client(client, email)
+    for i in range(5):
+        await _create_notification(email, title=f"Item {i}")
+
+    first_page = client.get(BASE, params={"page": 1, "page_size": 2}, headers=headers).json()
+    second_page = client.get(BASE, params={"page": 2, "page_size": 2}, headers=headers).json()
+    third_page = client.get(BASE, params={"page": 3, "page_size": 2}, headers=headers).json()
+
+    all_ids = [n["id"] for n in first_page["items"] + second_page["items"] + third_page["items"]]
+    assert len(all_ids) == len(set(all_ids)) == 5
+    assert first_page["total"] == second_page["total"] == third_page["total"] == 5
+
+
+async def test_candidate_isolation_in_list(client: TestClient) -> None:
+    headers_a = candidate_client(client, "notif.isoA@example.com")
+    candidate_client(client, "notif.isoB@example.com")
+    await _create_notification("notif.isoB@example.com", title="Belongs to B")
+
+    body = client.get(BASE, headers=headers_a).json()
+    assert body["items"] == []
+    assert body["total"] == 0
+
+
+# --- Status filtering (All / Unread / Read) ---------------------------------
+
+
+async def test_status_filter_unread_is_globally_correct(client: TestClient) -> None:
+    email = "notif.filterunread@example.com"
+    headers = candidate_client(client, email)
+    read_id = await _create_notification(email, title="Will be read")
+    await _create_notification(email, title="Stays unread 1")
+    await _create_notification(email, title="Stays unread 2")
+    client.post(f"{BASE}/{read_id}/read", headers=headers)
+
+    body = client.get(BASE, params={"status": "unread"}, headers=headers).json()
+    assert body["total"] == 2
+    assert all(not item["is_read"] for item in body["items"])
+
+
+async def test_status_filter_read_is_globally_correct(client: TestClient) -> None:
+    email = "notif.filterread@example.com"
+    headers = candidate_client(client, email)
+    read_id = await _create_notification(email, title="Will be read")
+    await _create_notification(email, title="Stays unread")
+    client.post(f"{BASE}/{read_id}/read", headers=headers)
+
+    body = client.get(BASE, params={"status": "read"}, headers=headers).json()
+    assert body["total"] == 1
+    assert all(item["is_read"] for item in body["items"])
+
+
+async def test_status_filter_all_includes_everything(client: TestClient) -> None:
+    email = "notif.filterall@example.com"
+    headers = candidate_client(client, email)
+    read_id = await _create_notification(email, title="Will be read")
+    await _create_notification(email, title="Stays unread")
+    client.post(f"{BASE}/{read_id}/read", headers=headers)
+
+    body = client.get(BASE, params={"status": "all"}, headers=headers).json()
+    assert body["total"] == 2
+
+
+async def test_status_filter_paginates_independently(client: TestClient) -> None:
+    email = "notif.filterpage@example.com"
+    headers = candidate_client(client, email)
+    for i in range(3):
+        await _create_notification(email, title=f"Unread {i}")
+
+    page1 = client.get(
+        BASE, params={"status": "unread", "page": 1, "page_size": 2}, headers=headers
+    ).json()
+    page2 = client.get(
+        BASE, params={"status": "unread", "page": 2, "page_size": 2}, headers=headers
+    ).json()
+
+    assert len(page1["items"]) == 2
+    assert len(page2["items"]) == 1
+    assert page1["total"] == page2["total"] == 3
+
+
+async def test_unread_count_is_global_not_page_specific(client: TestClient) -> None:
+    email = "notif.globalcount@example.com"
+    headers = candidate_client(client, email)
+    for i in range(20):
+        await _create_notification(email, title=f"N{i}")
+
+    # Request only the first page of 15; the unread-count endpoint must
+    # still report all 20, not the 15 on this page.
+    client.get(BASE, params={"page": 1, "page_size": 15}, headers=headers)
+    unread = client.get(f"{BASE}/unread-count", headers=headers).json()
+    assert unread["unread_count"] == 20
+
+
 # --- Mark as read / mark all as read ----------------------------------------
 
 

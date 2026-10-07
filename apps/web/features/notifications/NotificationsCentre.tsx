@@ -6,16 +6,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { CentreLoadingSkeleton } from "@/components/Skeleton";
+import { useNotificationCount } from "@/features/notifications/NotificationCountContext";
 import { NotificationList } from "@/features/notifications/NotificationList";
 import {
   getNotifications,
-  getUnreadNotificationCount,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/notifications/client";
 import type { Notification } from "@/lib/notifications/types";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
 
 type ReadFilter = "all" | "unread" | "read";
 
@@ -25,77 +25,117 @@ const READ_FILTERS: { value: ReadFilter; label: string }[] = [
   { value: "read", label: "Read" },
 ];
 
+const EMPTY_STATE_COPY: Record<ReadFilter, { heading: string; description: string }> = {
+  all: {
+    heading: "No notifications yet",
+    description: "Important updates about your Launchpad activity will appear here.",
+  },
+  unread: {
+    heading: "No unread notifications",
+    description: "You're all caught up.",
+  },
+  read: {
+    heading: "No read notifications yet",
+    description: "Notifications you've opened will show up here.",
+  },
+};
+
 export function NotificationsCentre() {
   const [page, setPage] = useState(1);
-  // Client-side only, over the current server-paginated page's items --
-  // there's no server-side filter endpoint, and adding one just for
-  // this cosmetic tab isn't warranted (PRD/Phase 13.5 brief section 8).
+  // Each tab is a real, independently-paginated server-side filter
+  // (status=all|unread|read) -- not a client-side slice of whatever
+  // page happens to be loaded.
   const [filter, setFilter] = useState<ReadFilter>("all");
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [total, setTotal] = useState(0);
-  // Tracked separately from the current page's items: whether "Mark
-  // all as read" should be enabled depends on unread notifications
-  // across *all* pages, not just the one currently shown.
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Global counts across the whole history, for the tab labels --
+  // distinct from `total`, which is the active tab/page's count.
+  const [allTotal, setAllTotal] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-  // The .then() callback is written inline, directly in the effect
-  // body (same reasoning as every other *Centre -- see
-  // features/resume/ResumeCentre.tsx).
+  const { unreadCount, setUnreadCount, refreshUnreadCount } = useNotificationCount();
+
+  // Builds and applies the fetch for the current page/filter. No
+  // setState happens before the returned promise settles, so this is
+  // safe to call directly from the effect body (see
+  // ResumeHistoryCentre.tsx / CreditHistoryCentre.tsx for why that
+  // matters for the set-state-in-effect lint rule) as well as from the
+  // explicit `refresh`/mark-all-read callbacks below.
+  const fetchAndApply = useCallback(() => {
+    // Cheap (page_size=1) call purely for the "All" tab's global total
+    // when it isn't already the active tab; reused instead of a
+    // bespoke counts endpoint.
+    const allTotalRequest =
+      filter === "all" ? null : getNotifications({ page: 1, page_size: 1, status: "all" });
+
+    return Promise.all([
+      getNotifications({ page, page_size: PAGE_SIZE, status: filter }),
+      allTotalRequest,
+    ]).then(([listResult, allResult]) => {
+      if (!listResult.ok || (allResult && !allResult.ok)) {
+        setHasError(true);
+        return;
+      }
+      setHasError(false);
+      setNotifications(listResult.data.items);
+      setTotal(listResult.data.total);
+      setAllTotal(allResult ? allResult.data.total : listResult.data.total);
+      refreshUnreadCount();
+    });
+  }, [page, filter, refreshUnreadCount]);
+
+  // Reset to page 1 whenever the tab changes, so switching from a
+  // filtered tab's page 3 doesn't request an out-of-range page on the
+  // next tab.
+  const handleFilterChange = useCallback((next: ReadFilter) => {
+    setFilter(next);
+    setPage(1);
+  }, []);
+
   useEffect(() => {
-    Promise.all([getNotifications({ page, page_size: PAGE_SIZE }), getUnreadNotificationCount()]).then(
-      ([listResult, unreadResult]) => {
-        if (!listResult.ok || !unreadResult.ok) {
-          setHasError(true);
-          return;
-        }
-        setHasError(false);
-        setNotifications(listResult.data.items);
-        setTotal(listResult.data.total);
-        setUnreadCount(unreadResult.data.unread_count);
-      },
-    );
-  }, [page]);
+    fetchAndApply();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filter]);
 
   const refresh = useCallback(() => {
     setNotifications(null);
     setHasError(false);
-    Promise.all([getNotifications({ page, page_size: PAGE_SIZE }), getUnreadNotificationCount()]).then(
-      ([listResult, unreadResult]) => {
-        if (!listResult.ok || !unreadResult.ok) {
-          setHasError(true);
-          return;
-        }
-        setNotifications(listResult.data.items);
-        setTotal(listResult.data.total);
-        setUnreadCount(unreadResult.data.unread_count);
-      },
-    );
-  }, [page]);
+    fetchAndApply();
+  }, [fetchAndApply]);
 
   // Never optimistic: local state only changes once the API call has
   // actually succeeded, so a failure never leaves the UI showing a
   // read-state the backend doesn't agree with (PRD section 10).
-  const handleMarkRead = useCallback(async (id: string) => {
-    const result = await markNotificationRead(id);
-    if (!result.ok) return;
-    setNotifications((current) =>
-      current ? current.map((n) => (n.id === id ? result.data : n)) : current,
-    );
-    setUnreadCount((count) => Math.max(0, count - 1));
-  }, []);
+  const handleMarkRead = useCallback(
+    async (id: string) => {
+      const result = await markNotificationRead(id);
+      if (!result.ok) return;
+      setNotifications((current) => {
+        if (!current) return current;
+        // Viewing "Unread": a just-read row no longer belongs on this
+        // tab, so drop it (and shrink its total) rather than leaving a
+        // stale read row in an unread-only list.
+        if (filter === "unread") {
+          setTotal((t) => Math.max(0, t - 1));
+          return current.filter((n) => n.id !== id);
+        }
+        return current.map((n) => (n.id === id ? result.data : n));
+      });
+      setUnreadCount((count) => Math.max(0, (count ?? 0) - 1));
+    },
+    [filter, setUnreadCount],
+  );
 
   const handleMarkAllRead = useCallback(async () => {
     setIsMarkingAllRead(true);
     const result = await markAllNotificationsRead();
     setIsMarkingAllRead(false);
     if (!result.ok) return;
-    setNotifications((current) =>
-      current ? current.map((n) => ({ ...n, is_read: true, read_at: n.read_at ?? new Date().toISOString() })) : current,
-    );
     setUnreadCount(0);
-  }, []);
+    setPage(1);
+    refresh();
+  }, [setUnreadCount, refresh]);
 
   if (notifications === null && !hasError) {
     return <CentreLoadingSkeleton label="Loading your notifications..." />;
@@ -105,35 +145,13 @@ export function NotificationsCentre() {
     return <ErrorState message="We couldn't load your notifications right now." onRetry={refresh} />;
   }
 
-  if ((notifications ?? []).length === 0) {
-    return (
-      <div style={{ maxWidth: "28rem", margin: "2.5rem auto" }}>
-        <EmptyState
-          heading="No notifications yet"
-          description="Important updates about your Launchpad activity will appear here."
-        />
-      </div>
-    );
-  }
-
-  const currentPageItems = notifications ?? [];
-  const pageUnreadCount = currentPageItems.filter((n) => !n.is_read).length;
-  // Counts reflect the current server-paginated page, matching what the
-  // tabs below actually filter (there's no server-side filter endpoint --
-  // see the `filter` state comment above) rather than the cross-page
-  // `total`/`unreadCount`, which would make e.g. "Unread 1" show while
-  // zero unread rows are visible on this page.
   const filterCounts: Record<ReadFilter, number> = {
-    all: currentPageItems.length,
-    unread: pageUnreadCount,
-    read: currentPageItems.length - pageUnreadCount,
+    all: allTotal,
+    unread: unreadCount ?? 0,
+    read: Math.max(0, allTotal - (unreadCount ?? 0)),
   };
 
-  const visibleNotifications = currentPageItems.filter((notification) => {
-    if (filter === "unread") return !notification.is_read;
-    if (filter === "read") return notification.is_read;
-    return true;
-  });
+  const visibleNotifications = notifications ?? [];
 
   return (
     <div className="page-section">
@@ -143,7 +161,7 @@ export function NotificationsCentre() {
           type="button"
           className="btn-ghost btn-sm"
           onClick={handleMarkAllRead}
-          disabled={unreadCount === 0 || isMarkingAllRead}
+          disabled={(unreadCount ?? 0) === 0 || isMarkingAllRead}
         >
           Mark all as read
         </button>
@@ -160,7 +178,7 @@ export function NotificationsCentre() {
               aria-selected={isActive}
               aria-label={option.label}
               className="notification-tab"
-              onClick={() => setFilter(option.value)}
+              onClick={() => handleFilterChange(option.value)}
             >
               {option.label}
               <span className="notification-tab-count" aria-hidden="true">
@@ -172,9 +190,12 @@ export function NotificationsCentre() {
       </div>
 
       {visibleNotifications.length === 0 ? (
-        <p className="page-section-hint" style={{ padding: "0.5rem 0" }}>
-          No {filter} notifications on this page.
-        </p>
+        <div style={{ maxWidth: "28rem", margin: "2.5rem auto" }}>
+          <EmptyState
+            heading={EMPTY_STATE_COPY[filter].heading}
+            description={EMPTY_STATE_COPY[filter].description}
+          />
+        </div>
       ) : (
         <NotificationList notifications={visibleNotifications} onMarkRead={handleMarkRead} />
       )}

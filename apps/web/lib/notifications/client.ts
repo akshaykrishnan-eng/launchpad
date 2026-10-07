@@ -36,8 +36,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
   return { ok: true, data: body as T };
 }
 
-export const getNotifications = (params: { page?: number; page_size?: number } = {}) =>
-  request<Page<Notification>>(`/notifications${query(params)}`);
+export const getNotifications = (
+  params: { page?: number; page_size?: number; status?: "all" | "unread" | "read" } = {},
+) => request<Page<Notification>>(`/notifications${query(params)}`);
 
 export const getUnreadNotificationCount = () => request<UnreadCount>("/notifications/unread-count");
 

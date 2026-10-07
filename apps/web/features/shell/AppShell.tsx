@@ -7,9 +7,20 @@ import { CloseIcon } from "@/components/icons";
 import { MobileBottomNav } from "@/features/shell/MobileBottomNav";
 import { Sidebar } from "@/features/shell/Sidebar";
 import { TopBar } from "@/features/shell/TopBar";
-import { getUnreadNotificationCount } from "@/lib/notifications/client";
+import {
+  NotificationCountProvider,
+  useNotificationCount,
+} from "@/features/notifications/NotificationCountContext";
 
-export function AppShell({
+export function AppShell(props: { email: string | null; roles: string[]; children: ReactNode }) {
+  return (
+    <NotificationCountProvider>
+      <AppShellContent {...props} />
+    </NotificationCountProvider>
+  );
+}
+
+function AppShellContent({
   email,
   roles,
   children,
@@ -22,15 +33,11 @@ export function AppShell({
   const pathname = usePathname();
   const [lastPathname, setLastPathname] = useState(pathname);
 
-  // Fetched once here and shared (as a prop) with both the sidebar's
-  // nav badge and the top bar's bell, instead of each fetching its own
-  // count independently -- see NotificationBadge's `unreadCount` prop.
-  const [unreadCount, setUnreadCount] = useState<number | null>(null);
-  useEffect(() => {
-    getUnreadNotificationCount().then((result) => {
-      if (result.ok) setUnreadCount(result.data.unread_count);
-    });
-  }, []);
+  // Shared with both the sidebar's nav badge and the top bar's bell
+  // (and with the Notifications page) via NotificationCountContext,
+  // instead of each fetching/tracking its own count independently --
+  // see NotificationBadge's `unreadCount` prop.
+  const { unreadCount } = useNotificationCount();
 
   // Close the mobile drawer automatically on navigation. Adjusting
   // state during render (the React-recommended pattern for "reset
