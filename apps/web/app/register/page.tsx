@@ -1,20 +1,20 @@
+import Link from "next/link";
+
+import { AuthCard } from "@/components/AuthCard";
 import { RegisterForm } from "@/features/auth/RegisterForm";
 
 export default function RegisterPage() {
   return (
-    <main
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "1.5rem",
-        padding: "2rem",
-      }}
+    <AuthCard
+      title="Create your account"
+      description="Start building your career journey."
+      footer={
+        <>
+          Already have an account? <Link href="/login">Sign in</Link>
+        </>
+      }
     >
-      <h1>Create your account</h1>
       <RegisterForm />
-    </main>
+    </AuthCard>
   );
 }

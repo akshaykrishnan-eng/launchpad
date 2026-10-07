@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 
-import { OnboardingStepPath, stepNeighbors } from "@/features/onboarding/steps";
+import { BackLink } from "@/components/BackLink";
+import { Stepper } from "@/components/Stepper";
+import { OnboardingRail } from "@/features/onboarding/OnboardingRail";
+import { ONBOARDING_STEPS, OnboardingStepPath, stepNeighbors } from "@/features/onboarding/steps";
 
 type OnboardingStepShellProps = {
   path: OnboardingStepPath;
@@ -25,51 +28,60 @@ export function OnboardingStepShell({
   onContinue,
   isSubmitting,
   error,
-  continueLabel = "Save & Continue",
+  continueLabel = "Continue",
 }: OnboardingStepShellProps) {
   const { index, total } = stepNeighbors(path);
 
   return (
-    <main
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "2rem",
-        gap: "1.5rem",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: "480px", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        <p style={{ opacity: 0.6, fontSize: "0.875rem" }}>
-          Step {index + 1} of {total}
-        </p>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>{title}</h1>
-          <p style={{ opacity: 0.75 }}>{description}</p>
+    <div className="onboarding-shell">
+      <OnboardingRail currentIndex={index} />
+
+      <main className="onboarding-content">
+        <div className="onboarding-topbar">
+          <BackLink href="/onboarding">Back to profile setup</BackLink>
         </div>
 
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            onContinue();
-          }}
-          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-        >
-          {children}
+        <div className="onboarding-content-center">
+          <div className="onboarding-content-inner">
+            <div className="onboarding-mobile-stepper">
+              <Stepper steps={ONBOARDING_STEPS} currentIndex={index} />
+            </div>
 
-          {error && <p role="alert">{error}</p>}
+            <header className="onboarding-step-header">
+              <p className="step-eyebrow onboarding-step-eyebrow-desktop">
+                Step {index + 1} of {total}
+              </p>
+              <h1>{title}</h1>
+              <p className="onboarding-step-description">{description}</p>
+            </header>
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
-            <button type="button" onClick={onBack} disabled={isSubmitting}>
-              Back
-            </button>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : continueLabel}
-            </button>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                onContinue();
+              }}
+              className="onboarding-step-form"
+            >
+              {children}
+
+              {error && (
+                <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+                  {error}
+                </p>
+              )}
+
+              <div className="onboarding-step-actions">
+                <button type="button" className="btn-ghost" onClick={onBack} disabled={isSubmitting}>
+                  ← Back
+                </button>
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : `${continueLabel} →`}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }

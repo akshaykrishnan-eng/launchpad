@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.candidate_profile import CandidateProfile
     from app.models.resume import Resume
     from app.models.review_result import ReviewResult
 
@@ -50,3 +51,7 @@ class ReviewRequest(Base):
     result: Mapped["ReviewResult | None"] = relationship(
         back_populates="review_request", cascade="all, delete-orphan", uselist=False
     )
+    # Added in Phase 8 for the admin review queue, which needs the
+    # candidate's name/email alongside each request -- pure ORM
+    # navigation over the FK that already existed, no schema change.
+    candidate_profile: Mapped["CandidateProfile"] = relationship(viewonly=True)

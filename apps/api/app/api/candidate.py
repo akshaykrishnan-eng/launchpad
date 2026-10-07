@@ -40,24 +40,6 @@ def _validation_error_to_http(exc: ValidationError) -> HTTPException:
     )
 
 
-async def _profile_read(db: AsyncSession, profile: CandidateProfile) -> CandidateProfileRead:
-    completion = await profile_service.calculate_completion_for(db, profile)
-    return CandidateProfileRead(
-        id=profile.id,
-        user_id=profile.user_id,
-        first_name=profile.first_name,
-        last_name=profile.last_name,
-        mobile_number=profile.mobile_number,
-        current_city=profile.current_city,
-        current_status=profile.current_status,
-        degree=profile.degree,
-        specialisation=profile.specialisation,
-        graduation_year=profile.graduation_year,
-        career_goal=profile.career_goal,
-        completion_percentage=completion,
-    )
-
-
 # --- Profile ----------------------------------------------------------
 
 
@@ -66,7 +48,7 @@ async def get_profile(
     profile: CandidateProfile = Depends(get_current_candidate_profile),
     db: AsyncSession = Depends(get_db),
 ) -> CandidateProfileRead:
-    return await _profile_read(db, profile)
+    return await profile_service.build_profile_read(db, profile)
 
 
 @router.patch("/profile", response_model=CandidateProfileRead)
@@ -76,7 +58,7 @@ async def patch_profile(
     db: AsyncSession = Depends(get_db),
 ) -> CandidateProfileRead:
     profile = await profile_service.update_profile(db, profile, payload)
-    return await _profile_read(db, profile)
+    return await profile_service.build_profile_read(db, profile)
 
 
 @router.get("/completion", response_model=ProfileCompletionRead)

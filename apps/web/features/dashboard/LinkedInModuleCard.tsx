@@ -1,5 +1,5 @@
-import Link from "next/link";
-
+import { LinkedInIcon } from "@/components/icons";
+import { ModuleSummaryCard } from "@/features/dashboard/ModuleSummaryCard";
 import type { ReviewRequestStatus } from "@/lib/linkedin/types";
 
 type LinkedInModuleCardProps = {
@@ -18,17 +18,11 @@ function label(hasProfile: boolean, reviewStatus: ReviewRequestStatus | null): s
 
 export function LinkedInModuleCard({ hasProfile, reviewStatus }: LinkedInModuleCardProps) {
   return (
-    <Link
+    <ModuleSummaryCard
       href="/app/linkedin"
-      style={{
-        display: "block",
-        border: "1px solid #e5e7eb",
-        borderRadius: "0.75rem",
-        padding: "1.5rem",
-      }}
-    >
-      <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>LinkedIn</h2>
-      <p>{label(hasProfile, reviewStatus)}</p>
-    </Link>
+      icon={LinkedInIcon}
+      title="LinkedIn"
+      status={label(hasProfile, reviewStatus)}
+    />
   );
 }

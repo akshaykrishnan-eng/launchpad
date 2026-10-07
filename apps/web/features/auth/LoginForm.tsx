@@ -25,12 +25,12 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/app");
+    router.push(result.redirectTo);
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%", maxWidth: "320px" }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.125rem", width: "100%" }}>
       <label>
         Email
         <input
@@ -39,6 +39,7 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
+          placeholder="Enter your email"
         />
       </label>
       <label>
@@ -49,10 +50,15 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
+          placeholder="Enter your password"
         />
       </label>
-      {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={isSubmitting}>
+      {error && (
+        <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+          {error}
+        </p>
+      )}
+      <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: "100%" }}>
         {isSubmitting ? "Signing in..." : "Sign in"}
       </button>
     </form>

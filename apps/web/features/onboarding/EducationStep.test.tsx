@@ -35,7 +35,7 @@ describe("EducationStep", () => {
     render(<EducationStep />);
     await screen.findByLabelText("Institution");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Institution and degree are required.",
@@ -51,7 +51,7 @@ describe("EducationStep", () => {
     fireEvent.change(screen.getByLabelText("Institution"), { target: { value: "State U" } });
     fireEvent.change(screen.getByLabelText("Degree"), { target: { value: "BSc" } });
     fireEvent.change(screen.getByLabelText("Graduation year"), { target: { value: "1800" } });
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Please enter a valid graduation year.",
@@ -66,7 +66,7 @@ describe("EducationStep", () => {
 
     fireEvent.change(screen.getByLabelText("Institution"), { target: { value: "State U" } });
     fireEvent.change(screen.getByLabelText("Degree"), { target: { value: "BSc" } });
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() => expect(createEducation).toHaveBeenCalled());
     expect(updateEducation).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("EducationStep", () => {
 
     expect(await screen.findByLabelText("Institution")).toHaveValue("State U");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() => expect(updateEducation).toHaveBeenCalledWith("edu-1", expect.anything()));
     expect(createEducation).not.toHaveBeenCalled();

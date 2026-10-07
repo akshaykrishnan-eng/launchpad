@@ -34,6 +34,25 @@ async def get_latest_version(db: AsyncSession, profile: CandidateProfile) -> int
     return result.scalar_one() or 0
 
 
+async def list_resumes_page(
+    db: AsyncSession, profile: CandidateProfile, *, page: int, page_size: int
+) -> tuple[list[Resume], int]:
+    """Server-side paginated counterpart to list_resumes, for the
+    dedicated Resume History page -- Resume Centre itself still uses
+    the unbounded list_resumes (cheap metadata-only rows) to find the
+    current/latest version."""
+    base_query = select(Resume).where(Resume.candidate_profile_id == profile.id)
+
+    total = (
+        await db.execute(select(func.count()).select_from(base_query.subquery()))
+    ).scalar_one()
+
+    result = await db.execute(
+        base_query.order_by(Resume.version.desc()).limit(page_size).offset((page - 1) * page_size)
+    )
+    return list(result.scalars()), total
+
+
 async def get_owned_resume(
     db: AsyncSession, profile: CandidateProfile, resume_id: uuid.UUID
 ) -> Resume | None:

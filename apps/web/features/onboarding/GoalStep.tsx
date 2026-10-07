@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { OnboardingStepShell } from "@/features/onboarding/OnboardingStepShell";
+import { OnboardingStepSkeleton } from "@/features/onboarding/OnboardingStepSkeleton";
 import { stepNeighbors } from "@/features/onboarding/steps";
 import { getProfile, updateProfile } from "@/lib/candidate/client";
 
@@ -42,7 +43,7 @@ export function GoalStep() {
   }
 
   if (isLoading) {
-    return <p style={{ padding: "2rem" }}>Loading...</p>;
+    return <OnboardingStepSkeleton />;
   }
 
   return (
@@ -54,7 +55,7 @@ export function GoalStep() {
       onContinue={handleContinue}
       isSubmitting={isSubmitting}
       error={error}
-      continueLabel="Finish"
+      continueLabel="Finish profile"
     >
       <label>
         Career goal

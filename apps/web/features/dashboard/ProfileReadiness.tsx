@@ -8,30 +8,51 @@ type ProfileReadinessProps = {
 };
 
 export function ProfileReadiness({ components }: ProfileReadinessProps) {
-  return (
-    <section
-      aria-labelledby="profile-readiness-heading"
-      style={{ border: "1px solid #e5e7eb", borderRadius: "0.75rem", padding: "1.5rem" }}
-    >
-      <h2 id="profile-readiness-heading" style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-        Profile Readiness
-      </h2>
+  const remaining = READINESS_ITEMS.filter((item) => !components[item.key]).length;
 
-      <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+  return (
+    <section aria-labelledby="profile-readiness-heading" className="card">
+      <div className="page-section-header" style={{ marginBottom: "0.25rem" }}>
+        <h2 id="profile-readiness-heading">Profile readiness</h2>
+        <span className="page-section-hint">
+          {remaining === 0 ? "Every section complete" : `${remaining} section${remaining === 1 ? "" : "s"} left`}
+        </span>
+      </div>
+
+      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column" }}>
         {READINESS_ITEMS.map((item) => {
           const isComplete = components[item.key];
           return (
-            <li key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-              <Link
-                href={item.href}
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}
-              >
-                <span aria-hidden="true">{isComplete ? "✓" : "○"}</span>
-                <span>{item.label}</span>
-              </Link>
-              <span style={{ fontSize: "0.875rem", opacity: 0.75 }}>
-                {isComplete ? "Complete" : "Incomplete"}
-              </span>
+            <li key={item.key} className="section-block" style={{ padding: "0.625rem 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+                <Link
+                  href={item.href}
+                  className="sidebar-nav-link"
+                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", flex: 1, padding: "0.25rem 0.5rem", marginLeft: "-0.5rem", borderRadius: "var(--radius-md)" }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: "inline-flex",
+                      width: "1.125rem",
+                      height: "1.125rem",
+                      borderRadius: "var(--radius-pill)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.75rem",
+                      flexShrink: 0,
+                      color: isComplete ? "var(--color-success-text)" : "var(--color-text-muted)",
+                      background: isComplete ? "var(--color-success-bg)" : "var(--color-surface-muted)",
+                    }}
+                  >
+                    {isComplete ? "✓" : "○"}
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+                <span className={`badge ${isComplete ? "badge-success" : "badge-neutral"}`}>
+                  {isComplete ? "Complete" : "Incomplete"}
+                </span>
+              </div>
             </li>
           );
         })}

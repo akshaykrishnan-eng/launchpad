@@ -1,5 +1,5 @@
-import Link from "next/link";
-
+import { ResumeIcon } from "@/components/icons";
+import { ModuleSummaryCard } from "@/features/dashboard/ModuleSummaryCard";
 import type { ResumeStatus } from "@/lib/resume/types";
 
 const STATUS_LABELS: Record<ResumeStatus, string> = {
@@ -16,17 +16,11 @@ type ResumeModuleCardProps = {
 
 export function ResumeModuleCard({ status }: ResumeModuleCardProps) {
   return (
-    <Link
+    <ModuleSummaryCard
       href="/app/resume"
-      style={{
-        display: "block",
-        border: "1px solid #e5e7eb",
-        borderRadius: "0.75rem",
-        padding: "1.5rem",
-      }}
-    >
-      <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>Resume</h2>
-      <p>{status ? STATUS_LABELS[status] : "Not uploaded yet"}</p>
-    </Link>
+      icon={ResumeIcon}
+      title="Resume"
+      status={status ? STATUS_LABELS[status] : "Not uploaded yet"}
+    />
   );
 }

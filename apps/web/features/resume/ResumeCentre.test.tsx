@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { listResumes, getReview, requestReview, uploadResume } = vi.hoisted(() => ({
+const { listResumes, getReview, requestReview, uploadResume, getCredits } = vi.hoisted(() => ({
   listResumes: vi.fn(),
   getReview: vi.fn(),
   requestReview: vi.fn(),
   uploadResume: vi.fn(),
+  getCredits: vi.fn(),
 }));
 vi.mock("@/lib/resume/client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/resume/client")>(
@@ -13,6 +14,7 @@ vi.mock("@/lib/resume/client", async () => {
   );
   return { ...actual, listResumes, getReview, requestReview, uploadResume };
 });
+vi.mock("@/lib/credits/client", () => ({ getCredits }));
 
 import { ResumeCentre } from "./ResumeCentre";
 
@@ -27,16 +29,32 @@ const RESUME_V1 = {
   is_latest: true,
 };
 
+const ZERO_BALANCES = [
+  { credit_type: "MOCK_INTERVIEW", balance: 0 },
+  { credit_type: "CAREER_COACHING", balance: 0 },
+  { credit_type: "RESUME_REVIEW", balance: 0 },
+  { credit_type: "LINKEDIN_REVIEW", balance: 0 },
+];
+
+const ONE_RESUME_REVIEW_CREDIT = [
+  { credit_type: "MOCK_INTERVIEW", balance: 0 },
+  { credit_type: "CAREER_COACHING", balance: 0 },
+  { credit_type: "RESUME_REVIEW", balance: 1 },
+  { credit_type: "LINKEDIN_REVIEW", balance: 0 },
+];
+
 afterEach(() => {
   listResumes.mockReset();
   getReview.mockReset();
   requestReview.mockReset();
   uploadResume.mockReset();
+  getCredits.mockReset();
 });
 
 describe("ResumeCentre", () => {
   it("shows a loading state before data arrives", () => {
     listResumes.mockReturnValue(new Promise(() => {}));
+    getCredits.mockReturnValue(new Promise(() => {}));
 
     render(<ResumeCentre />);
 
@@ -45,6 +63,7 @@ describe("ResumeCentre", () => {
 
   it("shows the empty state when no resume has been uploaded", async () => {
     listResumes.mockResolvedValue({ ok: true, data: [] });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<ResumeCentre />);
 
@@ -53,6 +72,7 @@ describe("ResumeCentre", () => {
 
   it("shows an error state and supports retry when loading fails", async () => {
     listResumes.mockResolvedValueOnce({ ok: false, status: 500, error: "boom" });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
     render(<ResumeCentre />);
     expect(await screen.findByRole("alert")).toHaveTextContent("couldn't load");
 
@@ -60,26 +80,29 @@ describe("ResumeCentre", () => {
     getReview.mockResolvedValue({ ok: true, data: null });
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
-    expect(await screen.findByText("resume_v1.pdf")).toBeInTheDocument();
+    expect((await screen.findAllByText("resume_v1.pdf")).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the current resume with version, filename, and status", async () => {
     listResumes.mockResolvedValue({ ok: true, data: [RESUME_V1] });
     getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<ResumeCentre />);
 
-    expect(await screen.findByText("resume_v1.pdf")).toBeInTheDocument();
-    expect(screen.getByText(/version 1/i)).toBeInTheDocument();
+    // Shown once in the hero summary and once in the current-resume card.
+    expect((await screen.findAllByText("resume_v1.pdf")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/version 1/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Status: Uploaded")).toBeInTheDocument();
   });
 
   it("does not show version history for a single resume", async () => {
     listResumes.mockResolvedValue({ ok: true, data: [RESUME_V1] });
     getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<ResumeCentre />);
-    await screen.findByText("resume_v1.pdf");
+    await screen.findAllByText("resume_v1.pdf");
 
     expect(screen.queryByText(/resume history/i)).not.toBeInTheDocument();
   });
@@ -89,19 +112,68 @@ describe("ResumeCentre", () => {
     const v1 = { ...RESUME_V1, is_latest: false };
     listResumes.mockResolvedValue({ ok: true, data: [v2, v1] });
     getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<ResumeCentre />);
 
     expect(await screen.findByText(/resume history/i)).toBeInTheDocument();
     expect(screen.getByText(/v2 \(latest\)/)).toBeInTheDocument();
-    expect(screen.getByText(/v1 —/)).toBeInTheDocument();
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    expect(screen.getByText("resume_v1.pdf")).toBeInTheDocument();
+    // Nothing more to view with only 2 versions.
+    expect(screen.queryByRole("link", { name: /view all/i })).not.toBeInTheDocument();
+  });
+
+  it("shows only the 3 most recent versions with a View all link when more exist", async () => {
+    const versions = [4, 3, 2, 1, 0].map((n) => ({
+      ...RESUME_V1,
+      id: `r${n}`,
+      version: n + 1,
+      original_filename: `resume_v${n + 1}.pdf`,
+      is_latest: n === 4,
+    }));
+    listResumes.mockResolvedValue({ ok: true, data: versions });
+    getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+
+    render(<ResumeCentre />);
+
+    expect(await screen.findByText(/resume history/i)).toBeInTheDocument();
+    // v5 is also the current resume, shown separately above -- the
+    // preview list itself should contain exactly v5, v4, v3.
+    expect(screen.getAllByText("resume_v5.pdf").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("resume_v4.pdf")).toBeInTheDocument();
+    expect(screen.getByText("resume_v3.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("resume_v2.pdf")).not.toBeInTheDocument();
+    expect(screen.queryByText("resume_v1.pdf")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /view all/i })).toHaveAttribute(
+      "href",
+      "/app/resume/history",
+    );
+  });
+
+  it("shows the insufficient-credit state with a link to Credits when balance is 0", async () => {
+    listResumes.mockResolvedValue({ ok: true, data: [RESUME_V1] });
+    getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+
+    render(<ResumeCentre />);
+    await screen.findAllByText("resume_v1.pdf");
+
+    expect(screen.getByText(/you need 1 resume review credit/i)).toBeInTheDocument();
+    expect(screen.getByText(/your balance: 0/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /view credits/i })).toHaveAttribute("href", "/app/credits");
+    expect(screen.queryByRole("button", { name: /request review/i })).not.toBeInTheDocument();
   });
 
   it("requests a review and reflects the under-review state", async () => {
     listResumes.mockResolvedValueOnce({ ok: true, data: [RESUME_V1] });
     getReview.mockResolvedValueOnce({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ONE_RESUME_REVIEW_CREDIT });
     render(<ResumeCentre />);
-    await screen.findByText("resume_v1.pdf");
+    await screen.findAllByText("resume_v1.pdf");
+
+    expect(screen.getByText(/1 resume review credit required/i)).toBeInTheDocument();
 
     requestReview.mockResolvedValue({
       ok: true,
@@ -125,6 +197,7 @@ describe("ResumeCentre", () => {
   it("renders completed review feedback only when a result actually exists", async () => {
     const completedResume = { ...RESUME_V1, status: "COMPLETED" as const };
     listResumes.mockResolvedValue({ ok: true, data: [completedResume] });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
     getReview.mockResolvedValue({
       ok: true,
       data: {
@@ -149,9 +222,9 @@ describe("ResumeCentre", () => {
     render(<ResumeCentre />);
     await screen.findByText("Status: Review completed");
 
-    fireEvent.click(screen.getByRole("button", { name: /view feedback/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view review/i }));
 
-    expect(screen.getByText(/score:/i)).toBeInTheDocument();
+    expect(screen.getByText("Overall score")).toBeInTheDocument();
     expect(screen.getByText("82")).toBeInTheDocument();
     expect(screen.getByText("Solid resume.")).toBeInTheDocument();
     expect(screen.getByText("Clear formatting")).toBeInTheDocument();
@@ -162,6 +235,7 @@ describe("ResumeCentre", () => {
   it("provides a download link pointing at the resume download endpoint", async () => {
     listResumes.mockResolvedValue({ ok: true, data: [RESUME_V1] });
     getReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<ResumeCentre />);
 

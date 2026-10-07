@@ -52,7 +52,7 @@ describe("AboutStep", () => {
     render(<AboutStep />);
     await screen.findByLabelText("First name");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Please fill in every field.");
     expect(updateProfile).not.toHaveBeenCalled();
@@ -71,7 +71,7 @@ describe("AboutStep", () => {
     fireEvent.change(screen.getByLabelText("Current status"), {
       target: { value: "STUDENT" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding/education"));
   });
@@ -89,7 +89,7 @@ describe("AboutStep", () => {
     fireEvent.change(screen.getByLabelText("Current status"), {
       target: { value: "STUDENT" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong");
     expect(push).not.toHaveBeenCalled();

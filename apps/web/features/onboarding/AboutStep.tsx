@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { OnboardingStepShell } from "@/features/onboarding/OnboardingStepShell";
+import { OnboardingStepSkeleton } from "@/features/onboarding/OnboardingStepSkeleton";
 import { stepNeighbors } from "@/features/onboarding/steps";
 import { getProfile, updateProfile } from "@/lib/candidate/client";
 import type { CandidateStatus } from "@/lib/candidate/types";
@@ -67,7 +68,7 @@ export function AboutStep() {
   }
 
   if (isLoading) {
-    return <p style={{ padding: "2rem" }}>Loading...</p>;
+    return <OnboardingStepSkeleton />;
   }
 
   return (
@@ -83,22 +84,26 @@ export function AboutStep() {
       {/* No `required` attributes: native HTML validation would block
           the submit handler before our own validation (and its error
           message) ever ran. */}
-      <label>
-        First name
-        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-      </label>
-      <label>
-        Last name
-        <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-      </label>
-      <label>
-        Mobile number
-        <input value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
-      </label>
-      <label>
-        Current city
-        <input value={currentCity} onChange={(e) => setCurrentCity(e.target.value)} />
-      </label>
+      <div className="form-row-2">
+        <label>
+          First name
+          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+        </label>
+        <label>
+          Last name
+          <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+        </label>
+      </div>
+      <div className="form-row-2">
+        <label>
+          Mobile number
+          <input value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
+        </label>
+        <label>
+          Current city
+          <input value={currentCity} onChange={(e) => setCurrentCity(e.target.value)} />
+        </label>
+      </div>
       <label>
         Current status
         <select

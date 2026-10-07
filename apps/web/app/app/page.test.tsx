@@ -8,6 +8,9 @@ const {
   getServerResumes,
   getServerLinkedInProfile,
   getServerLinkedInReview,
+  getServerCredits,
+  getServerMockInterviews,
+  getServerEvents,
 } = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT:${path}`);
@@ -17,12 +20,17 @@ const {
   getServerResumes: vi.fn(),
   getServerLinkedInProfile: vi.fn(),
   getServerLinkedInReview: vi.fn(),
+  getServerCredits: vi.fn(),
+  getServerMockInterviews: vi.fn(),
+  getServerEvents: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ redirect, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/session", () => ({ getAccessToken }));
 vi.mock("@/lib/candidate/backend", () => ({ getServerDashboard }));
 vi.mock("@/lib/resume/backend", () => ({ getServerResumes }));
 vi.mock("@/lib/linkedin/backend", () => ({ getServerLinkedInProfile, getServerLinkedInReview }));
+vi.mock("@/lib/mock-interviews/backend", () => ({ getServerCredits, getServerMockInterviews }));
+vi.mock("@/lib/events/backend", () => ({ getServerEvents }));
 
 import CandidateDashboardPage from "./page";
 
@@ -38,6 +46,9 @@ afterEach(() => {
   getServerResumes.mockReset();
   getServerLinkedInProfile.mockReset();
   getServerLinkedInReview.mockReset();
+  getServerCredits.mockReset();
+  getServerMockInterviews.mockReset();
+  getServerEvents.mockReset();
 });
 
 const SAMPLE_DASHBOARD = {
@@ -84,7 +95,7 @@ describe("CandidateDashboardPage", () => {
 
     render(await CandidateDashboardPage());
 
-    expect(screen.getByText(/Hi Dana/)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome back, Dana/)).toBeInTheDocument();
   });
 
   it("renders the completion percentage from the backend", async () => {
@@ -161,13 +172,130 @@ describe("CandidateDashboardPage", () => {
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
     getServerResumes.mockResolvedValue([]);
     getServerLinkedInProfile.mockResolvedValue(null);
+    getServerEvents.mockResolvedValue([]);
 
     render(await CandidateDashboardPage());
 
-    for (const title of ["Mock Interviews", "Events", "Career Coaching", "Jobs"]) {
+    for (const title of ["Career Coaching", "Jobs"]) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
-    expect(screen.getAllByText("Coming soon")).toHaveLength(4);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(2);
+    // Mock Interviews and Events are no longer placeholders -- they
+    // get real status cards (see the dedicated tests below), not
+    // "Coming soon".
+    expect(screen.getByRole("heading", { name: "Mock Interviews" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Events & Webinars" })).toBeInTheDocument();
+  });
+
+  it("shows the next upcoming event on the Events module card", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerResumes.mockResolvedValue([]);
+    getServerLinkedInProfile.mockResolvedValue(null);
+    getServerEvents.mockResolvedValue([
+      {
+        id: "evt-1",
+        title: "Breaking Into Product Engineering",
+        description: "desc",
+        event_type: "WEBINAR",
+        status: "PUBLISHED",
+        starts_at: "2026-11-20T18:00:00Z",
+        ends_at: "2026-11-20T19:00:00Z",
+        timezone: "IST",
+        location: null,
+        meeting_url: null,
+        is_registered: false,
+      },
+    ]);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText(/Next: Breaking Into Product Engineering/)).toBeInTheDocument();
+  });
+
+  it("shows no upcoming events when the candidate has none", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerResumes.mockResolvedValue([]);
+    getServerLinkedInProfile.mockResolvedValue(null);
+    getServerEvents.mockResolvedValue([]);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("No upcoming events")).toBeInTheDocument();
+  });
+
+  it("shows the Mock Interview module's credit balance when no interview has ever happened", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerCredits.mockResolvedValue([
+      { credit_type: "MOCK_INTERVIEW", balance: 3 },
+      { credit_type: "CAREER_COACHING", balance: 0 },
+      { credit_type: "RESUME_REVIEW", balance: 0 },
+      { credit_type: "LINKEDIN_REVIEW", balance: 0 },
+    ]);
+    getServerMockInterviews.mockResolvedValue([]);
+
+    render(await CandidateDashboardPage());
+
+    const mockInterviewLinks = screen.getAllByRole("link", { name: /mock interviews/i });
+    const card = mockInterviewLinks.find(
+      (link) => link.getAttribute("href") === "/app/mock-interviews",
+    );
+    expect(card).toBeDefined();
+    expect(screen.getByText("3 credits available")).toBeInTheDocument();
+  });
+
+  it("shows the Mock Interview module's next upcoming interview when one is booked", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerCredits.mockResolvedValue([{ credit_type: "MOCK_INTERVIEW", balance: 0 }]);
+    getServerMockInterviews.mockResolvedValue([
+      {
+        id: "mi1",
+        interview_type: "HR",
+        role: null,
+        status: "BOOKED",
+        scheduled_at: "2026-10-10T10:00:00Z",
+        created_at: "x",
+        feedback: null,
+      },
+    ]);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText(/Next interview:/)).toBeInTheDocument();
+  });
+
+  it("shows the Mock Interview module's last completed score when no interview is upcoming", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+    getServerCredits.mockResolvedValue([{ credit_type: "MOCK_INTERVIEW", balance: 0 }]);
+    getServerMockInterviews.mockResolvedValue([
+      {
+        id: "mi1",
+        interview_type: "HR",
+        role: null,
+        status: "COMPLETED",
+        scheduled_at: "2026-09-01T10:00:00Z",
+        created_at: "x",
+        feedback: {
+          communication_score: 8,
+          confidence_score: 7,
+          technical_score: 9,
+          answer_structure_score: 8,
+          professional_presentation_score: 8,
+          overall_score: 82,
+          feedback: "Solid.",
+          recommendations: [],
+          created_at: "x",
+        },
+      },
+    ]);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("Last interview: Score 82")).toBeInTheDocument();
   });
 
   it("shows the Resume module with real state instead of a placeholder", async () => {

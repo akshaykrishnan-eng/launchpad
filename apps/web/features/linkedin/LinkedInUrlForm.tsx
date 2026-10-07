@@ -36,7 +36,7 @@ export function LinkedInUrlForm({ initialUrl = "", onSaved, onCancel }: LinkedIn
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: "400px" }}>
+    <form onSubmit={handleSubmit} className="card" style={{ display: "flex", flexDirection: "column", gap: "0.25rem", maxWidth: "440px" }}>
       <label htmlFor="linkedin-url-input">
         LinkedIn Profile URL
         <input
@@ -45,13 +45,18 @@ export function LinkedInUrlForm({ initialUrl = "", onSaved, onCancel }: LinkedIn
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://www.linkedin.com/in/your-name"
+          aria-invalid={error ? "true" : undefined}
         />
       </label>
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+          {error}
+        </p>
+      )}
 
       <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button type="submit" disabled={isSaving}>
+        <button type="submit" className="btn-primary" disabled={isSaving}>
           {isSaving ? "Saving..." : "Save"}
         </button>
         {onCancel && (

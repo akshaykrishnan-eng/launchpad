@@ -75,3 +75,11 @@ async def get_current_candidate_profile(
     never from a client-supplied id -- this is the ownership boundary
     every candidate endpoint is built on."""
     return await get_or_create_profile(db, current_user.id)
+
+
+# ADMIN and SUPER_ADMIN are treated identically in this phase (PRD
+# section 29: "do not build a complicated permissions matrix unless
+# required"). Every admin route depends on this, never on a
+# client-supplied role/id -- the role is always re-read from the
+# database by get_current_user above.
+require_admin = require_role(RoleName.ADMIN, RoleName.SUPER_ADMIN)

@@ -54,7 +54,7 @@ describe("CareerStep", () => {
     render(<CareerStep />);
     await screen.findByText("Software Developer");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() =>
       expect(updatePreferences).toHaveBeenCalledWith({
@@ -74,7 +74,7 @@ describe("CareerStep", () => {
     render(<CareerStep />);
     await screen.findByPlaceholderText("e.g. Software Developer");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong");
     expect(push).not.toHaveBeenCalled();

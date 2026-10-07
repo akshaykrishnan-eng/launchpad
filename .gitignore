@@ -16,6 +16,10 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Local resume storage (uploaded files from local/dev testing -- see
+# app/services/resume_storage.py / RESUME_STORAGE_DIR)
+apps/api/storage/
+
 # OS / editor
 .DS_Store
 .vscode/

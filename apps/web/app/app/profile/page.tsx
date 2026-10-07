@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { AddExperienceForm } from "@/features/profile/AddExperienceForm";
+import { BackLink } from "@/components/BackLink";
+import { ProfileHeader, STATUS_LABELS } from "@/features/profile/ProfileHeader";
+import { WorkExperienceSection } from "@/features/profile/WorkExperienceSection";
 import {
   getServerCandidateProfile,
   getServerEducation,
@@ -11,6 +13,8 @@ import {
   getServerSkills,
 } from "@/lib/candidate/backend";
 import { getAccessToken } from "@/lib/auth/session";
+
+type NextSection = { label: string; href: string };
 
 export default async function CandidateProfilePage() {
   const accessToken = await getAccessToken();
@@ -30,83 +34,95 @@ export default async function CandidateProfilePage() {
     redirect("/login");
   }
 
+  // A presentational hint only -- which section to fill in next, derived
+  // from the same data already rendered below. The backend's completion
+  // percentage (profile.completion_percentage) remains the single source
+  // of truth for the number itself; this never recomputes it.
+  const hasPreferences = Boolean(
+    preferences && (preferences.preferred_roles.length > 0 || preferences.preferred_locations.length > 0),
+  );
+  const nextSection: NextSection | null =
+    !profile.first_name
+      ? { label: "About you", href: "/onboarding/about" }
+      : !education || education.length === 0
+        ? { label: "Education", href: "/onboarding/education" }
+        : !skills || skills.length === 0
+          ? { label: "Skills", href: "/onboarding/skills" }
+          : !hasPreferences
+            ? { label: "Career interests", href: "/onboarding/career" }
+            : !profile.career_goal
+              ? { label: "Career goal", href: "/onboarding/goal" }
+              : null;
+
   return (
-    <main style={{ maxWidth: "640px", margin: "0 auto", padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
-      <div>
-        <h1 style={{ fontSize: "2rem", fontWeight: 700 }}>Your Profile</h1>
-        <p style={{ opacity: 0.75 }}>{profile.completion_percentage}% complete</p>
+    <div className="page page-wide">
+      <BackLink href="/app">Back to Dashboard</BackLink>
+
+      <ProfileHeader profile={profile} nextSection={nextSection} />
+
+      <div className="profile-layout">
+        <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+          <Section title="About you" editHref="/onboarding/about">
+            {profile.first_name ? (
+              <FactList
+                items={[profile.mobile_number, profile.current_city, STATUS_LABELS[profile.current_status ?? ""]]}
+              />
+            ) : (
+              <SectionEmptyState />
+            )}
+          </Section>
+
+          <Section title="Career goal" editHref="/onboarding/goal">
+            {profile.career_goal ? <p>{profile.career_goal}</p> : <SectionEmptyState />}
+          </Section>
+
+          <Section title="Career interests" editHref="/onboarding/career">
+            {preferences && (preferences.preferred_roles.length > 0 || preferences.preferred_locations.length > 0) ? (
+              <FactList
+                items={[
+                  `Roles: ${preferences.preferred_roles.join(", ") || "—"}`,
+                  `Locations: ${preferences.preferred_locations.join(", ") || "—"}`,
+                ]}
+              />
+            ) : (
+              <SectionEmptyState />
+            )}
+          </Section>
+        </div>
+
+        <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+          <Section title="Education" editHref="/onboarding/education">
+            {education && education.length > 0 ? (
+              <FactList
+                items={education.map(
+                  (entry) =>
+                    `${entry.degree} in ${entry.specialization ?? "—"}, ${entry.institution}` +
+                    (entry.graduation_year ? ` (${entry.graduation_year})` : ""),
+                )}
+              />
+            ) : (
+              <SectionEmptyState />
+            )}
+          </Section>
+
+          <Section title="Skills" editHref="/onboarding/skills">
+            {skills && skills.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                {skills.map((skill) => (
+                  <span key={skill.id} className="badge badge-neutral">
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <SectionEmptyState />
+            )}
+          </Section>
+
+          <WorkExperienceSection experience={experience ?? []} />
+        </div>
       </div>
-
-      <Section title="About you" editHref="/onboarding/about">
-        {profile.first_name ? (
-          <ul>
-            <li>
-              {profile.first_name} {profile.last_name}
-            </li>
-            <li>{profile.mobile_number}</li>
-            <li>{profile.current_city}</li>
-            <li>{profile.current_status}</li>
-          </ul>
-        ) : (
-          <EmptyState />
-        )}
-      </Section>
-
-      <Section title="Education" editHref="/onboarding/education">
-        {education && education.length > 0 ? (
-          <ul>
-            {education.map((entry) => (
-              <li key={entry.id}>
-                {entry.degree} in {entry.specialization ?? "—"}, {entry.institution}
-                {entry.graduation_year ? ` (${entry.graduation_year})` : ""}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState />
-        )}
-      </Section>
-
-      <Section title="Skills" editHref="/onboarding/skills">
-        {skills && skills.length > 0 ? (
-          <p>{skills.map((skill) => skill.name).join(", ")}</p>
-        ) : (
-          <EmptyState />
-        )}
-      </Section>
-
-      <section>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Work experience</h2>
-        {experience && experience.length > 0 ? (
-          <ul>
-            {experience.map((entry) => (
-              <li key={entry.id}>
-                {entry.job_title} at {entry.company}
-                {entry.is_current ? " (current)" : ""}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ opacity: 0.6 }}>No work experience added yet.</p>
-        )}
-        <AddExperienceForm />
-      </section>
-
-      <Section title="Career interests" editHref="/onboarding/career">
-        {preferences && (preferences.preferred_roles.length > 0 || preferences.preferred_locations.length > 0) ? (
-          <ul>
-            <li>Roles: {preferences.preferred_roles.join(", ") || "—"}</li>
-            <li>Locations: {preferences.preferred_locations.join(", ") || "—"}</li>
-          </ul>
-        ) : (
-          <EmptyState />
-        )}
-      </Section>
-
-      <Section title="Career goal" editHref="/onboarding/goal">
-        {profile.career_goal ? <p>{profile.career_goal}</p> : <EmptyState />}
-      </Section>
-    </main>
+    </div>
   );
 }
 
@@ -120,16 +136,28 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>{title}</h2>
-        <Link href={editHref}>Edit</Link>
+    <section className="section-block">
+      <div className="section-block-header">
+        <h2 style={{ fontSize: "1rem" }}>{title}</h2>
+        <Link href={editHref} className="btn-ghost btn-sm" style={{ display: "inline-flex" }}>
+          Edit
+        </Link>
       </div>
       {children}
     </section>
   );
 }
 
-function EmptyState() {
-  return <p style={{ opacity: 0.6 }}>Not completed yet.</p>;
+function FactList({ items }: { items: (string | null | undefined)[] }) {
+  return (
+    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+      {items.filter(Boolean).map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function SectionEmptyState() {
+  return <p style={{ color: "var(--color-text-secondary)" }}>Not completed yet.</p>;
 }

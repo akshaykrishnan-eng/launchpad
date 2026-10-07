@@ -74,7 +74,7 @@ describe("SkillsStep", () => {
     render(<SkillsStep />);
     await screen.findByPlaceholderText("e.g. Python");
 
-    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(push).toHaveBeenCalledWith("/onboarding/career");
   });

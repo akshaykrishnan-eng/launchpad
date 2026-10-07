@@ -33,7 +33,19 @@ describe("LoginForm", () => {
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
 
-  it("logs in and redirects to /app on success", async () => {
+  it("logs in and redirects to /app for a candidate", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, redirectTo: "/app" }) }),
+    );
+    render(<LoginForm />);
+
+    fillAndSubmit();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/app"));
+  });
+
+  it("defaults to /app if the server response omits redirectTo", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }),
@@ -43,6 +55,18 @@ describe("LoginForm", () => {
     fillAndSubmit();
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/app"));
+  });
+
+  it("logs in and redirects to /admin for an admin-capable user", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, redirectTo: "/admin" }) }),
+    );
+    render(<LoginForm />);
+
+    fillAndSubmit();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/admin"));
   });
 
   it("shows an error message on invalid credentials and does not redirect", async () => {

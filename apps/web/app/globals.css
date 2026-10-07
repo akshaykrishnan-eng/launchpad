@@ -1,13 +1,80 @@
+/* ---------------------------------------------------------------------
+   Design tokens. Primary (#336CFC) and the two text colors (#222222 /
+   #585858) are the authoritative Launchpad brand colors; everything
+   else in this block is a small, deliberately limited neutral palette
+   derived around them. Light-mode only, by design: a B2B SaaS product
+   benefits more from one consistent, recognizable brand surface than
+   from auto-switching with the OS theme, and the brand colors below
+   were only specified for a light UI.
+   ------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --color-primary: #336cfc;
+  --color-primary-hover: #2d5fde;
+  --color-primary-active: #2854c4;
+  --color-primary-pressed: #1f3f9e;
+  --color-primary-subtle: #eaf0ff;
+  /* --color-primary (#336CFC, the pinned brand swatch) is ~4.48:1 on
+     white/on-dark-text surfaces -- just under the 4.5:1 WCAG AA
+     threshold for normal text, which is the Phase 6.6 contrast finding
+     on primary buttons and active sidebar navigation. --color-primary
+     itself is unchanged (still used for decorative/non-text accents:
+     the active nav indicator bar, focus rings, icons); anywhere the
+     color carries *text* instead reaches for --color-primary-hover
+     (5.6:1 on white, 4.9:1 on --color-primary-subtle), which is the
+     fix applied at the token/component level below. */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-text-primary: #222222;
+  --color-text-secondary: #585858;
+  --color-text-muted: #8a8a8a;
+  --color-text-on-primary: #ffffff;
+
+  --color-background: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f6;
+
+  --color-border: #e3e6eb;
+  --color-border-subtle: #edeff2;
+
+  --color-success-bg: #d1fae5;
+  --color-success-text: #065f46;
+  --color-warning-bg: #fef3c7;
+  --color-warning-text: #92400e;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+  --color-danger-text: #991b1b;
+  --color-info-bg: var(--color-primary-subtle);
+  --color-info-text: #1d3fa6;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+
+  --sidebar-width: 268px;
+  --header-height: 60px;
+  --bottom-nav-height: 60px;
+  --page-max-width: 1120px;
+
+  --color-primary-wash: #f3f6ff;
+  --color-surface-sunken: #fafbfc;
+
+  /* Kept for any code that still reads the old names. */
+  --background: var(--color-background);
+  --foreground: var(--color-text-primary);
 }
 
 html {
@@ -24,9 +91,11 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -37,13 +106,1481 @@ body {
   margin: 0;
 }
 
+/* ---------------------------------------------------------------------
+   Typography hierarchy. Explicit inline font-size/weight on a heading
+   still wins (most feature components set their own), but every
+   heading that doesn't gets a sane default instead of browser defaults.
+   ------------------------------------------------------------------ */
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+}
+
+p {
+  color: inherit;
+}
+
 a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Plain structural links (nav, cards) opt out of the link treatment by
+   inheriting color -- only content links should look like links. */
+nav a,
+.card a.card-link {
   color: inherit;
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+nav a:hover,
+.card a.card-link:hover {
+  text-decoration: none;
+}
+
+.sidebar-nav-link:hover {
+  background: var(--color-surface-muted);
+}
+
+.sidebar-nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+/* ---------------------------------------------------------------------
+   Form controls. This is the single biggest lever: before this block,
+   every button/input/select/textarea in the app rendered as a bare
+   browser default.
+   ------------------------------------------------------------------ */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+}
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-4);
+}
+
+label > input,
+label > select,
+label > textarea {
+  margin-top: var(--space-2);
+}
+
+input,
+select,
+textarea {
+  display: block;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.5625rem 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #c7ccd4;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+input[aria-invalid="true"]:focus-visible,
+textarea[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-danger-bg);
+}
+
+input[type="file"] {
+  border-style: dashed;
+  cursor: pointer;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  display: inline-block;
+  width: auto;
+  accent-color: var(--color-primary);
+}
+
+/* Two related fields side by side on wide enough screens (e.g. first /
+   last name) -- single column below that, so forms never force
+   horizontal scrolling on mobile. */
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 var(--space-5);
+}
+
+@media (min-width: 560px) {
+  .form-row-2 {
+    grid-template-columns: 1fr 1fr;
   }
+}
+
+/* ---------------------------------------------------------------------
+   Buttons. `.btn` is the base; add one variant class for color/treatment.
+   Plain <button> elements without a variant class still get a sane
+   (secondary-style) default rather than the browser's native chrome.
+   ------------------------------------------------------------------ */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: #c7ccd4;
+  background: var(--color-surface-muted);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+  border-color: var(--color-primary);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  background: var(--color-surface);
+}
+
+.btn-primary {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-text-on-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--color-primary-pressed);
+  border-color: var(--color-primary-pressed);
+}
+
+.btn-danger {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.btn-sm {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* The box/layout half of the button rules above lives on the bare
+   `button` element selector, so a <Link> styled as a button (several
+   pages link to a route with button-like emphasis) picked up the color
+   variant class but not the box model -- each caller was compensating
+   with its own ad hoc inline `display: inline-flex`. Fixed once here
+   instead of patched per call site. */
+a.btn-primary,
+a.btn-danger,
+a.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.btn-primary:hover,
+a.btn-danger:hover,
+a.btn-ghost:hover {
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------
+   Cards.
+   ------------------------------------------------------------------ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-dashed {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  box-shadow: none;
+}
+
+a.card-clickable {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+a.card-clickable:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #c7ccd4;
+  text-decoration: none;
+}
+
+a.card-clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+  border-color: var(--color-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Badges.
+   ------------------------------------------------------------------ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.1875rem 0.625rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.badge-neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.badge-info {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.badge-success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.badge-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+/* ---------------------------------------------------------------------
+   Tables.
+   ------------------------------------------------------------------ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+th {
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------------
+   Progress bar (continuous percentage -- profile completion, onboarding
+   overview). See .stepper-* below for the discrete step version.
+   ------------------------------------------------------------------ */
+.progress-track {
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+/* ---------------------------------------------------------------------
+   Stepper (discrete steps -- onboarding). A row of filled/unfilled
+   segments plus a "Step X of Y" caption; see components/Stepper.tsx.
+   ------------------------------------------------------------------ */
+.stepper-track {
+  display: flex;
+  gap: 0.375rem;
+  list-style: none;
+}
+
+.stepper-segment {
+  flex: 1;
+  height: 0.3125rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+}
+
+.stepper-segment[data-state="complete"],
+.stepper-segment[data-state="current"] {
+  background: var(--color-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Chip list (add/remove tags -- skills, preferred roles/locations).
+   ------------------------------------------------------------------ */
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.chip-remove {
+  height: 1.125rem;
+  width: 1.125rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.chip-remove:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* ---------------------------------------------------------------------
+   Stat tile (credit balances, interview score grid).
+   ------------------------------------------------------------------ */
+.stat-tile {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  background: var(--color-surface);
+}
+
+.stat-tile-label {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.stat-tile-value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-top: 0.125rem;
+}
+
+.stat-tile-value-unit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------------
+   Feedback list (review strengths / areas for improvement /
+   recommendations) -- a colored marker dot, never colored text, so
+   the content itself always reads at full body contrast.
+   ------------------------------------------------------------------ */
+.feedback-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
+.feedback-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.feedback-marker {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+  margin-top: 0.5rem;
+}
+
+.feedback-marker-success {
+  background: #10b981;
+}
+
+.feedback-marker-warning {
+  background: #f59e0b;
+}
+
+.feedback-marker-info {
+  background: var(--color-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Review dialog -- the focused Resume/LinkedIn review surface, built
+   on the native <dialog> element (free focus trap, Escape-to-close,
+   and ::backdrop). Replaces an inline "View Feedback" expansion that
+   used to push the rest of the page far down the screen.
+   ------------------------------------------------------------------ */
+.review-dialog {
+  /* The project's `* { margin: 0 }` reset (higher specificity than the
+     UA stylesheet) would otherwise cancel the native centering every
+     browser applies to a modal <dialog> via `margin: auto` -- restated
+     explicitly here so the dialog doesn't pin to the top-left. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(600px, calc(100vw - 2rem));
+  max-height: min(82vh, 720px);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.review-dialog::backdrop {
+  background: rgba(17, 24, 39, 0.5);
+}
+
+.review-dialog-content {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.review-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.review-dialog-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.review-dialog-close:hover {
+  background: var(--color-surface-muted);
+}
+
+.review-dialog-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .review-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    inset: 0;
+    border-radius: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Upload dropzone (Resume Centre). A real drop target, not a bare
+   <input type="file"> -- the input itself stays in the DOM (keyboard-
+   accessible, still what tests drive via its label) but is visually
+   replaced by this surrounding zone.
+   ------------------------------------------------------------------ */
+.upload-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.25rem;
+  padding: 1.75rem 1.25rem;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.upload-dropzone[data-dragover="true"] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.upload-dropzone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+}
+
+.upload-dropzone-icon {
+  color: var(--color-primary-hover);
+  margin-bottom: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------
+   Skeleton loading.
+   ------------------------------------------------------------------ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-muted) 25%,
+    var(--color-border-subtle) 37%,
+    var(--color-surface-muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Screen-reader-only text: present in the accessibility tree without
+   taking up visual space. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Application shell. Desktop: a fixed sidebar + offset main content.
+   Mobile (<1024px): the fixed sidebar becomes a slide-in drawer behind
+   a top header bar, toggled by features/shell/AppShell.tsx.
+   ------------------------------------------------------------------ */
+.app-shell-sidebar {
+  display: none;
+}
+
+.app-shell-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-shell-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.4);
+  z-index: 30;
+}
+
+.app-shell-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(84vw, var(--sidebar-width));
+  background: var(--color-surface);
+  z-index: 31;
+  box-shadow: var(--shadow-md);
+}
+
+.app-shell-main {
+  flex: 1;
+  padding: 1.5rem 1rem 3rem;
+}
+
+@media (min-width: 1024px) {
+  .app-shell-mobile-header {
+    display: none;
+  }
+
+  .app-shell-sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .app-shell-main {
+    margin-left: var(--sidebar-width);
+    padding: 2.5rem 3rem 4rem;
+  }
+}
+
+/* Mobile primary navigation: a fixed bottom tab bar for the app's five
+   real destinations, so navigation stays one tap away instead of
+   living only behind the hamburger drawer (which remains for the
+   account/admin/logout actions -- see AppShell.tsx). */
+.app-shell-bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -2px 8px rgba(16, 24, 40, 0.04);
+}
+
+.app-shell-bottom-nav-link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem;
+  padding: 0.5rem 0.25rem 0.4375rem;
+  height: var(--bottom-nav-height);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.app-shell-bottom-nav-link[aria-current="page"] {
+  color: var(--color-primary-hover);
+}
+
+@media (min-width: 1024px) {
+  .app-shell-bottom-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .app-shell-main {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.25rem);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Page container. A single consistent content width/rhythm for every
+   candidate page, instead of each page hand-rolling its own maxWidth.
+   ------------------------------------------------------------------ */
+.page {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.page-narrow {
+  max-width: 760px;
+}
+
+.page-wide {
+  max-width: 1200px;
+}
+
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.page-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-section-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.page-section-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------------
+   Hero / welcome panel -- the dashboard's command-centre banner and the
+   profile header. One brand-forward surface instead of another plain
+   white card.
+   ------------------------------------------------------------------ */
+.hero-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-pressed) 100%);
+  color: var(--color-text-on-primary);
+  padding: 1.75rem 1.75rem 2rem;
+}
+
+.hero-panel::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 60%;
+  padding-bottom: 60%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.hero-panel::after {
+  content: "";
+  position: absolute;
+  bottom: -50%;
+  right: 15%;
+  width: 40%;
+  padding-bottom: 40%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-title {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 0.1875rem;
+  line-height: 1.3;
+}
+
+.hero-subtitle {
+  color: rgba(255, 255, 255, 0.88);
+  margin-top: 0.375rem;
+  max-width: 34rem;
+  position: relative;
+}
+
+.hero-cta {
+  background: #fff;
+  border-color: #fff;
+  color: var(--color-primary-active);
+}
+
+.hero-cta:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.92);
+}
+
+/* ---------------------------------------------------------------------
+   Progress ring -- a circular alternative to .progress-track for
+   headline completion/score numbers (dashboard hero, profile header,
+   resume score). Always sits on a floating white badge so the punched
+   "hole" color never has to match an arbitrary parent background.
+   ------------------------------------------------------------------ */
+.progress-ring-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  padding: 0.3125rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.progress-ring {
+  position: relative;
+  width: var(--ring-size, 4.5rem);
+  height: var(--ring-size, 4.5rem);
+  border-radius: 50%;
+}
+
+.progress-ring-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color-primary) calc(var(--ring-pct, 0) * 1%),
+    var(--color-border) 0
+  );
+}
+
+.progress-ring-hole {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.progress-ring-unit {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ---------------------------------------------------------------------
+   Avatar -- initials badge used in the sidebar identity area and the
+   profile header.
+   ------------------------------------------------------------------ */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary-hover);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------
+   Sidebar nav grouping.
+   ------------------------------------------------------------------ */
+.nav-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0.75rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+/* ---------------------------------------------------------------------
+   Section block -- a lighter-weight alternative to stacking `.card`
+   for every subsection of a longer page (Profile). A thin divider
+   instead of a border box around every piece of content.
+   ------------------------------------------------------------------ */
+.section-block {
+  padding: 1.375rem 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.section-block:first-child {
+  padding-top: 0;
+}
+
+.section-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.section-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------
+   Timeline item -- upcoming/past mock interviews, resume version
+   history: a date badge + content row instead of a plain bordered box.
+   ------------------------------------------------------------------ */
+.timeline-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.timeline-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.timeline-item:first-child {
+  padding-top: 0;
+}
+
+.timeline-date-badge {
+  flex-shrink: 0;
+  width: 3.25rem;
+  text-align: center;
+  padding: 0.375rem 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.timeline-date-badge .timeline-date-day {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.timeline-date-badge .timeline-date-month {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------------
+   Work experience timeline -- a connecting line + role marker per
+   entry, so a career history reads as a timeline rather than a plain
+   "title at company" sentence or another stack of bordered cards.
+   ------------------------------------------------------------------ */
+.experience-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.experience-item {
+  position: relative;
+  padding: 0 0 1.25rem 1.25rem;
+  border-left: 2px solid var(--color-border-subtle);
+}
+
+.experience-item:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.experience-item::before {
+  content: "";
+  position: absolute;
+  left: -0.4375rem;
+  top: 0.1875rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-text-muted);
+}
+
+.experience-item[data-current="true"]::before {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.experience-item-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+}
+
+.experience-item-company {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.0625rem;
+}
+
+.experience-item-dates {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------
+   Onboarding step shell -- a two-pane workspace (wayfinding rail +
+   step content) that fills the viewport, replacing the old "tiny card
+   floating in a sea of grey" layout. The rail is decorative/duplicate
+   wayfinding (aria-hidden); the mobile step header remains the
+   accessible progress indicator at every width. `.onboarding-topbar`
+   (the "back to profile setup" escape hatch) sits outside the
+   vertically-centered `.onboarding-content-center` block on purpose,
+   so short step forms don't leave it stranded mid-page.
+   ------------------------------------------------------------------ */
+.onboarding-shell {
+  flex: 1;
+  display: flex;
+  min-height: 100%;
+  background: var(--color-surface);
+}
+
+.onboarding-rail {
+  display: none;
+}
+
+.onboarding-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.onboarding-topbar {
+  padding: 1.5rem 1.5rem 0;
+}
+
+.onboarding-content-center {
+  flex: 1;
+  display: flex;
+  /* Mobile: pin to the top -- a short step (e.g. Career Goal's single
+     textarea) centered in a full-height viewport reads as the exact
+     "huge blank space" this redesign set out to remove. Centering is a
+     desktop-only touch, restored below once there's a rail alongside
+     it to balance against. */
+  align-items: flex-start;
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+.onboarding-content-inner {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.onboarding-mobile-stepper {
+  width: 100%;
+}
+
+.onboarding-step-eyebrow-desktop {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .onboarding-rail {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    flex-shrink: 0;
+    padding: 2.5rem 2rem;
+    background: var(--color-surface-sunken);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .onboarding-topbar {
+    padding: 2rem 3rem 0;
+  }
+
+  .onboarding-content-center {
+    align-items: center;
+    padding: 1rem 3rem 4rem;
+  }
+
+  .onboarding-content-inner {
+    max-width: 720px;
+  }
+
+  .onboarding-mobile-stepper {
+    display: none;
+  }
+
+  .onboarding-step-eyebrow-desktop {
+    display: block;
+  }
+}
+
+.step-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-primary-hover);
+}
+
+.onboarding-step-header h1 {
+  font-size: 1.75rem;
+  margin-top: 0.375rem;
+}
+
+.onboarding-step-description {
+  color: var(--color-text-secondary);
+  margin-top: 0.375rem;
+}
+
+.onboarding-step-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.onboarding-step-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.onboarding-rail-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  list-style: none;
+  margin-top: 2rem;
+}
+
+.onboarding-rail-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.onboarding-rail-step[data-state="current"] {
+  background: var(--color-primary-subtle);
+}
+
+.onboarding-rail-step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.onboarding-rail-step[data-state="current"] .onboarding-rail-step-marker {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.onboarding-rail-step[data-state="complete"] .onboarding-rail-step-marker {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.onboarding-rail-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.onboarding-rail-step-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.onboarding-rail-step[data-state="current"] .onboarding-rail-step-label {
+  color: var(--color-primary-hover);
+}
+
+.onboarding-rail-step[data-state="complete"] .onboarding-rail-step-label {
+  color: var(--color-text-primary);
+}
+
+.onboarding-rail-step-caption {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.onboarding-rail-step[data-state="current"] .onboarding-rail-step-caption {
+  color: var(--color-primary-hover);
+}
+
+.onboarding-rail-footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------
+   Onboarding overview journey -- a horizontal five-step stepper with a
+   connecting line at desktop widths, collapsing to a vertical list on
+   narrow screens. Used only by the onboarding overview page (the guided
+   step shell keeps its own simpler .onboarding-rail-step).
+   ------------------------------------------------------------------ */
+.onboarding-journey {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  gap: 0.25rem;
+}
+
+.onboarding-journey-step-link {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: inherit;
+}
+
+.onboarding-journey-step-link:hover {
+  background: var(--color-surface-muted);
+}
+
+.onboarding-journey-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.onboarding-journey-step[data-state="complete"] .onboarding-journey-marker {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.onboarding-journey-step[data-state="current"] .onboarding-journey-marker {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.onboarding-journey-step-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.onboarding-journey-step-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.onboarding-journey-step[data-state="complete"] .onboarding-journey-step-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.onboarding-journey-step-caption {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.onboarding-journey-step[data-state="current"] .onboarding-journey-step-caption {
+  color: var(--color-primary-hover);
+  font-weight: 600;
+}
+
+@media (min-width: 720px) {
+  .onboarding-journey {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .onboarding-journey-step {
+    position: relative;
+    flex: 1;
+  }
+
+  .onboarding-journey-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 1.375rem;
+    left: calc(50% + 1.5rem);
+    right: calc(-50% + 1.5rem);
+    height: 2px;
+    background: var(--color-border);
+  }
+
+  .onboarding-journey-step[data-state="complete"]:not(:last-child)::after {
+    background: var(--color-success-bg);
+  }
+
+  .onboarding-journey-step-link {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    text-align: center;
+  }
+
+  .onboarding-journey-step-text {
+    align-items: center;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Profile page two-column layout -- facts/goals rail + credentials
+   column, collapsing to one column below 860px.
+   ------------------------------------------------------------------ */
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Callout -- a left-accent panel for emphasised feedback/recommendation
+   content (LinkedIn Centre), distinct from a plain card border.
+   ------------------------------------------------------------------ */
+.callout {
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-primary-wash);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 1rem 1.125rem;
 }

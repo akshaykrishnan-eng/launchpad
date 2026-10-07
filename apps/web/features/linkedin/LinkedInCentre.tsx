@@ -2,16 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { EmptyLinkedInState } from "@/features/linkedin/EmptyLinkedInState";
-import { LinkedInErrorState } from "@/features/linkedin/LinkedInErrorState";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CentreLoadingSkeleton } from "@/components/Skeleton";
 import { LinkedInProfileCard } from "@/features/linkedin/LinkedInProfileCard";
 import { LinkedInUrlForm } from "@/features/linkedin/LinkedInUrlForm";
+import { getCredits } from "@/lib/credits/client";
+import type { CreditBalance } from "@/lib/credits/types";
 import { getLinkedInProfile, getLinkedInReview } from "@/lib/linkedin/client";
 import type { LinkedInProfile, LinkedInReviewRequest } from "@/lib/linkedin/types";
 
 export function LinkedInCentre() {
   const [profile, setProfile] = useState<LinkedInProfile | null>(null);
   const [review, setReview] = useState<LinkedInReviewRequest | null>(null);
+  const [credits, setCredits] = useState<CreditBalance[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -21,14 +25,15 @@ export function LinkedInCentre() {
   // Vitest's react-hooks/set-state-in-effect check happy -- see
   // features/resume/ResumeCentre.tsx for the fuller explanation.
   useEffect(() => {
-    getLinkedInProfile().then(async (profileResult) => {
-      if (!profileResult.ok) {
+    Promise.all([getLinkedInProfile(), getCredits()]).then(async ([profileResult, creditsResult]) => {
+      if (!profileResult.ok || !creditsResult.ok) {
         setHasError(true);
         setIsLoading(false);
         return;
       }
 
       setProfile(profileResult.data);
+      setCredits(creditsResult.data);
       const reviewResult = profileResult.data ? await getLinkedInReview() : null;
       setReview(reviewResult?.ok ? reviewResult.data : null);
       setIsLoading(false);
@@ -39,14 +44,15 @@ export function LinkedInCentre() {
     setIsLoading(true);
     setHasError(false);
     setIsEditing(false);
-    getLinkedInProfile().then(async (profileResult) => {
-      if (!profileResult.ok) {
+    Promise.all([getLinkedInProfile(), getCredits()]).then(async ([profileResult, creditsResult]) => {
+      if (!profileResult.ok || !creditsResult.ok) {
         setHasError(true);
         setIsLoading(false);
         return;
       }
 
       setProfile(profileResult.data);
+      setCredits(creditsResult.data);
       const reviewResult = profileResult.data ? await getLinkedInReview() : null;
       setReview(reviewResult?.ok ? reviewResult.data : null);
       setIsLoading(false);
@@ -54,17 +60,26 @@ export function LinkedInCentre() {
   }, []);
 
   if (isLoading) {
-    return <p style={{ padding: "2rem" }}>Loading your LinkedIn Centre...</p>;
+    return <CentreLoadingSkeleton label="Loading your LinkedIn Centre..." />;
   }
 
-  if (hasError) {
-    return <LinkedInErrorState onRetry={refresh} />;
+  if (hasError || !credits) {
+    return (
+      <ErrorState message="We couldn't load your LinkedIn Centre right now." onRetry={refresh} />
+    );
   }
+
+  const linkedinReviewBalance = credits.find((c) => c.credit_type === "LINKEDIN_REVIEW")?.balance ?? 0;
 
   if (!profile || isEditing) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        {!profile && <EmptyLinkedInState />}
+        {!profile && (
+          <EmptyState
+            heading="No LinkedIn profile added yet"
+            description="Add your LinkedIn profile URL to get started."
+          />
+        )}
         <LinkedInUrlForm
           initialUrl={profile?.profile_url ?? ""}
           onSaved={refresh}
@@ -78,6 +93,7 @@ export function LinkedInCentre() {
     <LinkedInProfileCard
       profile={profile}
       review={review}
+      creditBalance={linkedinReviewBalance}
       onEdit={() => setIsEditing(true)}
       onReviewRequested={refresh}
     />

@@ -35,7 +35,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%", maxWidth: "320px" }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.125rem", width: "100%" }}>
       <label>
         Email
         <input
@@ -44,6 +44,7 @@ export function RegisterForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
+          placeholder="Enter your email"
         />
       </label>
       <label>
@@ -55,6 +56,7 @@ export function RegisterForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
+          placeholder="Create a password"
         />
       </label>
       <label>
@@ -66,10 +68,15 @@ export function RegisterForm() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           autoComplete="new-password"
+          placeholder="Re-enter your password"
         />
       </label>
-      {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={isSubmitting}>
+      {error && (
+        <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+          {error}
+        </p>
+      )}
+      <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: "100%" }}>
         {isSubmitting ? "Creating account..." : "Create account"}
       </button>
     </form>

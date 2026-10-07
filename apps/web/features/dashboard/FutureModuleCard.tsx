@@ -9,17 +9,20 @@ type FutureModuleCardProps = {
  * like, so there's nothing to accidentally mistake for real data. */
 export function FutureModuleCard({ title }: FutureModuleCardProps) {
   return (
-    <section
+    <div
       aria-label={`${title}: coming soon`}
       style={{
-        border: "1px dashed #d1d5db",
-        borderRadius: "0.75rem",
-        padding: "1.5rem",
-        opacity: 0.7,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "0.75rem",
+        padding: "0.75rem 1rem",
+        borderRadius: "var(--radius-md)",
+        border: "1px dashed var(--color-border)",
       }}
     >
-      <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>{title}</h2>
-      <p>Coming soon</p>
-    </section>
+      <h2 style={{ fontSize: "0.9375rem", color: "var(--color-text-secondary)", fontWeight: 600 }}>{title}</h2>
+      <span className="badge badge-neutral">Coming soon</span>
+    </div>
   );
 }

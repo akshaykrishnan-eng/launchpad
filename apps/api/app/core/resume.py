@@ -16,6 +16,9 @@ class ResumeStatus(StrEnum):
     COMPLETED = "COMPLETED"
 
 
+RESUME_REVIEW_CREDIT_COST = 1
+
+
 # --- Upload validation ------------------------------------------------
 #
 # The extension alone is never trusted: every accepted extension also

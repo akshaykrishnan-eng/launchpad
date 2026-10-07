@@ -1,4 +1,10 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import delete, select
+
+from app.db.session import AsyncSessionLocal
+from app.models.role import Role
+from app.models.user import User
+from app.models.user_role import UserRole
 
 DEFAULT_PASSWORD = "correct-horse-battery-staple"
 
@@ -25,6 +31,32 @@ def candidate_client(client: TestClient, email: str, password: str = DEFAULT_PAS
     """Registers+logs in a fresh candidate and returns ready-to-use
     Authorization headers for it."""
     tokens = register_and_login(client, email, password)
+    return auth_headers(tokens)
+
+
+async def set_user_role(email: str, role_name: str) -> None:
+    """Replaces whatever roles a user has with exactly one -- the same
+    role-switch several Phase 5/7 tests already do inline, factored out
+    since Phase 8's authorization matrix needs it for five different
+    roles across many tests."""
+    async with AsyncSessionLocal() as db:
+        user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+        await db.execute(delete(UserRole).where(UserRole.user_id == user.id))
+        role = (await db.execute(select(Role).where(Role.name == role_name))).scalar_one()
+        db.add(UserRole(user_id=user.id, role_id=role.id))
+        await db.commit()
+
+
+async def role_client(
+    client: TestClient, email: str, role_name: str, password: str = DEFAULT_PASSWORD
+) -> dict:
+    """Registers a user, switches their role to role_name, and returns
+    ready-to-use Authorization headers. Async (unlike candidate_client)
+    because set_user_role needs a real await -- call it from an async
+    test (asyncio_mode = "auto" makes that the norm in this suite)."""
+    register(client, email, password)
+    await set_user_role(email, role_name)
+    tokens = login(client, email, password).json()
     return auth_headers(tokens)
 
 

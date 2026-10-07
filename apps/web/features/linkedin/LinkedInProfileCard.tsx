@@ -2,14 +2,19 @@
 
 import { useState } from "react";
 
-import { LinkedInReviewResult } from "@/features/linkedin/LinkedInReviewResult";
+import { PageHero } from "@/components/PageHero";
+import { ReviewDialog } from "@/components/ReviewDialog";
+import { LinkedInIcon } from "@/components/icons";
+import { CreditRequirement } from "@/features/credits/CreditRequirement";
 import { LinkedInReviewStatusBadge } from "@/features/linkedin/LinkedInReviewStatusBadge";
+import { LINKEDIN_REVIEW_COST } from "@/lib/credits/types";
 import { requestLinkedInReview } from "@/lib/linkedin/client";
 import type { LinkedInProfile, LinkedInReviewRequest } from "@/lib/linkedin/types";
 
 type LinkedInProfileCardProps = {
   profile: LinkedInProfile;
   review: LinkedInReviewRequest | null;
+  creditBalance: number;
   onEdit: () => void;
   onReviewRequested: (review: LinkedInReviewRequest) => void;
 };
@@ -17,12 +22,13 @@ type LinkedInProfileCardProps = {
 export function LinkedInProfileCard({
   profile,
   review,
+  creditBalance,
   onEdit,
   onReviewRequested,
 }: LinkedInProfileCardProps) {
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   const isReviewActive = review !== null && review.status !== "COMPLETED";
   const displayUrl = profile.profile_url.replace(/^https?:\/\//, "");
@@ -41,61 +47,101 @@ export function LinkedInProfileCard({
   }
 
   return (
-    <section aria-labelledby="linkedin-profile-heading" style={{ border: "1px solid #e5e7eb", borderRadius: "0.75rem", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <h2 id="linkedin-profile-heading" style={{ fontSize: "1.125rem", fontWeight: 600 }}>
-        LinkedIn Profile
-      </h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <PageHero
+        ariaLabel="LinkedIn profile overview"
+        eyebrow="LinkedIn profile"
+        metric={displayUrl}
+        action={
+          isReviewActive ? (
+            <p style={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "0.875rem" }}>Your review is in progress.</p>
+          ) : (
+            <CreditRequirement
+              creditType="LINKEDIN_REVIEW"
+              required={LINKEDIN_REVIEW_COST}
+              balance={creditBalance}
+              actionLabel="Request Review"
+              pendingLabel="Requesting..."
+              onAction={handleRequestReview}
+              isActionPending={isRequesting}
+              variant="hero"
+            />
+          )
+        }
+      />
 
-      <p>
-        <a href={profile.profile_url} target="_blank" rel="noreferrer">
-          {displayUrl}
-        </a>
-      </p>
+      <section aria-labelledby="linkedin-profile-heading" className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              flexShrink: 0,
+              width: "2.75rem",
+              height: "2.75rem",
+              borderRadius: "var(--radius-md)",
+              background: "var(--color-primary-subtle)",
+              color: "var(--color-primary-hover)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <LinkedInIcon aria-hidden />
+          </span>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
-        <button type="button" onClick={onEdit} disabled={isReviewActive}>
-          Edit URL
-        </button>
-        {!isReviewActive && (
-          <button type="button" onClick={handleRequestReview} disabled={isRequesting}>
-            {isRequesting ? "Requesting..." : "Request Review"}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 id="linkedin-profile-heading" style={{ fontSize: "1.0625rem" }}>
+              LinkedIn Profile
+            </h2>
+            <p style={{ marginTop: "0.25rem" }}>
+              <a href={profile.profile_url} target="_blank" rel="noreferrer" style={{ fontWeight: 600, fontSize: "0.9375rem" }}>
+                {displayUrl}
+              </a>
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", paddingTop: "0.5rem", borderTop: "1px solid var(--color-border-subtle)" }}>
+          <button type="button" onClick={onEdit} disabled={isReviewActive}>
+            Edit URL
           </button>
+        </div>
+
+        {isReviewActive && (
+          <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
+            You can&apos;t edit your URL while a review is in progress.
+          </p>
         )}
-      </div>
 
-      {isReviewActive && (
-        <p style={{ opacity: 0.75, fontSize: "0.875rem" }}>
-          You can&apos;t edit your URL while a review is in progress.
-        </p>
-      )}
-
-      {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+            {error}
+          </p>
+        )}
+      </section>
 
       {review && (
-        <div>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Review Status</h3>
-          <LinkedInReviewStatusBadge status={review.status} />
-
-          {review.status === "COMPLETED" && review.result && (
-            <div style={{ marginTop: "0.75rem" }}>
-              <button type="button" onClick={() => setShowFeedback((v) => !v)}>
-                {showFeedback ? "Hide Feedback" : "View Feedback"}
-              </button>
-              {showFeedback && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <LinkedInReviewResult result={review.result} />
-                </div>
-              )}
+        <section aria-label="Profile review" className="card">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+              <h3>Review Status</h3>
+              <LinkedInReviewStatusBadge status={review.status} />
             </div>
-          )}
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setIsReviewOpen(true)}>
+              View review →
+            </button>
+          </div>
 
-          {review.status === "COMPLETED" && !review.result && (
-            // Shouldn't normally happen (COMPLETED implies a result),
-            // but never claim a review is done without one.
-            <p>Review not completed yet.</p>
-          )}
-        </div>
+          <ReviewDialog
+            isOpen={isReviewOpen}
+            onClose={() => setIsReviewOpen(false)}
+            kind="linkedin"
+            status={review.status}
+            result={review.result}
+            documentLabel={displayUrl}
+          />
+        </section>
       )}
-    </section>
+    </div>
   );
 }

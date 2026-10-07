@@ -16,6 +16,18 @@ vi.mock("@/lib/resume/client", () => ({
   uploadResume: vi.fn(),
   downloadUrl: (id: string) => `/api/candidate/resumes/${id}/download`,
 }));
+vi.mock("@/lib/credits/client", () => ({
+  getCredits: vi.fn().mockResolvedValue({
+    ok: true,
+    data: [
+      { credit_type: "MOCK_INTERVIEW", balance: 0 },
+      { credit_type: "CAREER_COACHING", balance: 0 },
+      { credit_type: "RESUME_REVIEW", balance: 0 },
+      { credit_type: "LINKEDIN_REVIEW", balance: 0 },
+    ],
+  }),
+  getCreditTransactions: vi.fn(),
+}));
 
 import ResumeCentrePage from "./page";
 

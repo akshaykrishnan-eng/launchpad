@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 # *looks like* a LinkedIn personal profile URL.
 _PROFILE_PATH_RE = re.compile(r"^/in/[^/]+/?$")
 
+LINKEDIN_REVIEW_CREDIT_COST = 1
+
 
 class InvalidLinkedInUrlError(Exception):
     def __init__(self, message: str) -> None:

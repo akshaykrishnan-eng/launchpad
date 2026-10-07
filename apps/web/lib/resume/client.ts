@@ -1,6 +1,16 @@
+import type { Page } from "@/lib/pagination";
 import type { ResumeApiError, Resume, ReviewRequest } from "@/lib/resume/types";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
+
+function query(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
 
 function errorMessage(body: ResumeApiError): string {
   if (!body.detail) return "Something went wrong. Please try again.";
@@ -23,6 +33,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
 }
 
 export const listResumes = () => request<Resume[]>("/resumes");
+
+export const getResumeHistory = (params: { page?: number; page_size?: number } = {}) =>
+  request<Page<Resume>>(`/resumes/history${query(params)}`);
 
 export function uploadResume(file: File): Promise<ApiResult<Resume>> {
   const formData = new FormData();

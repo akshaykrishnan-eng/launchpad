@@ -8,16 +8,19 @@ import {
   accessTokenCookieOptions,
   refreshTokenCookieOptions,
 } from "@/lib/auth/cookies";
+import { isAccessTokenExpired } from "@/lib/auth/jwt";
 
 /**
  * Server Components can't write cookies, so a silent refresh can't
  * happen on the protected page itself -- it has to happen here, before
- * the page renders. This only checks cookie *presence*; FastAPI remains
- * the sole verifier of whether the access token is actually valid.
+ * the page renders. Checking the `exp` claim (not just cookie
+ * presence) is what decides whether to *attempt* a refresh; it is
+ * never treated as authentication -- FastAPI remains the sole verifier
+ * of whether the access token is actually valid, same as before.
  */
 export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (accessToken) {
+  if (accessToken && !isAccessTokenExpired(accessToken)) {
     return NextResponse.next();
   }
 
@@ -49,5 +52,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding/:path*"],
+  matcher: ["/app/:path*", "/onboarding/:path*", "/admin/:path*"],
 };

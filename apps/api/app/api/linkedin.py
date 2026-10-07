@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_candidate_profile
+from app.core.credits import InsufficientCreditError
 from app.db.session import get_db
 from app.models.candidate_profile import CandidateProfile
 from app.schemas.linkedin import (
@@ -59,11 +60,21 @@ async def request_linkedin_review(
         )
 
     try:
-        review_request = await linkedin_review_service.request_review(db, linkedin_profile)
+        review_request = await linkedin_review_service.request_review(
+            db, linkedin_profile, profile
+        )
     except linkedin_review_service.DuplicateActiveReviewError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A review is already in progress for this LinkedIn profile",
+        ) from exc
+    except InsufficientCreditError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"You don't have enough {exc.credit_type.value.replace('_', ' ').title()} "
+                f"credits. Required: {exc.required}, available: {exc.available}."
+            ),
         ) from exc
 
     # Built explicitly, not via model_validate(): a freshly created

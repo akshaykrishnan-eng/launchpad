@@ -9,7 +9,7 @@ from app.models.candidate_skill import CandidateSkill
 from app.models.career_preference import CareerPreference
 from app.models.education import Education
 from app.models.work_experience import WorkExperience
-from app.schemas.candidate import CandidateProfileUpdate
+from app.schemas.candidate import CandidateProfileRead, CandidateProfileUpdate
 from app.services.profile_completion import (
     CompletionBreakdown,
     CompletionInput,
@@ -103,3 +103,25 @@ async def get_completion_breakdown_for(
 
 async def calculate_completion_for(db: AsyncSession, profile: CandidateProfile) -> int:
     return (await get_completion_breakdown_for(db, profile)).percentage
+
+
+async def build_profile_read(db: AsyncSession, profile: CandidateProfile) -> CandidateProfileRead:
+    """Shared by the candidate's own /profile endpoint and the admin
+    Candidate 360 view (Phase 8) -- one place that knows how to turn a
+    CandidateProfile row (whose completion_percentage isn't a real
+    column) into the API-facing shape."""
+    completion = await calculate_completion_for(db, profile)
+    return CandidateProfileRead(
+        id=profile.id,
+        user_id=profile.user_id,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        mobile_number=profile.mobile_number,
+        current_city=profile.current_city,
+        current_status=profile.current_status,
+        degree=profile.degree,
+        specialisation=profile.specialisation,
+        graduation_year=profile.graduation_year,
+        career_goal=profile.career_goal,
+        completion_percentage=completion,
+    )

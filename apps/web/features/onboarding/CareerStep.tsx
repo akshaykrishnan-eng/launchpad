@@ -3,79 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ChipList } from "@/components/ChipList";
 import { OnboardingStepShell } from "@/features/onboarding/OnboardingStepShell";
+import { OnboardingStepSkeleton } from "@/features/onboarding/OnboardingStepSkeleton";
 import { stepNeighbors } from "@/features/onboarding/steps";
 import { getPreferences, updatePreferences } from "@/lib/candidate/client";
 
 const { previousPath, nextPath } = stepNeighbors("/onboarding/career");
-
-function TagInput({
-  label,
-  placeholder,
-  values,
-  onAdd,
-  onRemove,
-}: {
-  label: string;
-  placeholder: string;
-  values: string[];
-  onAdd: (value: string) => void;
-  onRemove: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState("");
-
-  function add() {
-    const value = draft.trim();
-    if (value) {
-      onAdd(value);
-      setDraft("");
-    }
-  }
-
-  return (
-    <div>
-      <label>
-        {label}
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={placeholder}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
-          <button type="button" onClick={add}>
-            Add
-          </button>
-        </div>
-      </label>
-      <ul style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", listStyle: "none", padding: 0, marginTop: "0.5rem" }}>
-        {values.map((value) => (
-          <li
-            key={value}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.25rem 0.75rem",
-              borderRadius: "999px",
-              backgroundColor: "#e5e7eb",
-            }}
-          >
-            {value}
-            <button type="button" onClick={() => onRemove(value)} aria-label={`Remove ${value}`}>
-              &times;
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 export function CareerStep() {
   const router = useRouter();
@@ -112,7 +46,7 @@ export function CareerStep() {
   }
 
   if (isLoading) {
-    return <p style={{ padding: "2rem" }}>Loading...</p>;
+    return <OnboardingStepSkeleton />;
   }
 
   return (
@@ -125,7 +59,7 @@ export function CareerStep() {
       isSubmitting={isSubmitting}
       error={error}
     >
-      <TagInput
+      <ChipList
         label="Preferred roles"
         placeholder="e.g. Software Developer"
         values={preferredRoles}
@@ -136,7 +70,7 @@ export function CareerStep() {
         }
         onRemove={(value) => setPreferredRoles((prev) => prev.filter((v) => v !== value))}
       />
-      <TagInput
+      <ChipList
         label="Preferred locations"
         placeholder="e.g. Remote"
         values={preferredLocations}

@@ -1,20 +1,20 @@
+import Link from "next/link";
+
+import { AuthCard } from "@/components/AuthCard";
 import { LoginForm } from "@/features/auth/LoginForm";
 
 export default function LoginPage() {
   return (
-    <main
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "1.5rem",
-        padding: "2rem",
-      }}
+    <AuthCard
+      title="Sign in"
+      description="Welcome back to Launchpad."
+      footer={
+        <>
+          Don&apos;t have an account? <Link href="/register">Create one</Link>
+        </>
+      }
     >
-      <h1>Sign in</h1>
       <LoginForm />
-    </main>
+    </AuthCard>
   );
 }

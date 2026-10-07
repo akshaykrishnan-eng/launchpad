@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.candidate_profile import CandidateProfile
     from app.models.linkedin_profile import LinkedInProfile
     from app.models.linkedin_review_result import LinkedInReviewResult
 
@@ -61,3 +62,6 @@ class LinkedInReviewRequest(Base):
     result: Mapped["LinkedInReviewResult | None"] = relationship(
         back_populates="review_request", cascade="all, delete-orphan", uselist=False
     )
+    # Added in Phase 8 for the admin review queue -- see the identical
+    # note on app/models/review_request.py.
+    candidate_profile: Mapped["CandidateProfile"] = relationship(viewonly=True)

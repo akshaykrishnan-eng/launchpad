@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { BackLink } from "@/components/BackLink";
+import { PageHeader } from "@/components/PageHeader";
 import { ResumeCentre } from "@/features/resume/ResumeCentre";
 import { getAccessToken } from "@/lib/auth/session";
 
@@ -10,9 +12,12 @@ export default async function ResumeCentrePage() {
   }
 
   return (
-    <main style={{ maxWidth: "640px", margin: "0 auto", padding: "1.5rem" }}>
-      <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "1rem" }}>Resume Centre</h1>
+    <div className="page page-narrow">
+      <div>
+        <BackLink href="/app">Back to Dashboard</BackLink>
+        <PageHeader title="Resume Centre" description="Manage your resume and review feedback." />
+      </div>
       <ResumeCentre />
-    </main>
+    </div>
   );
 }

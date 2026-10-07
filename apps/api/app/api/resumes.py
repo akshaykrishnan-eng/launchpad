@@ -1,19 +1,24 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_candidate_profile
+from app.core.credits import InsufficientCreditError
 from app.core.resume import InvalidResumeFileError, ResumeTooLargeError
 from app.db.session import get_db
 from app.models.candidate_profile import CandidateProfile
+from app.schemas.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Page, clamp_page_size
 from app.schemas.resume import ResumeRead, ReviewRequestRead
 from app.services import resume as resume_service
 from app.services import resume_review as review_service
 from app.services.resume_storage import ResumeStorage, get_resume_storage
 
 router = APIRouter(prefix="/candidate/resumes", tags=["resumes"])
+
+_PAGE = Query(default=1, ge=1)
+_PAGE_SIZE = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE)
 
 
 async def _get_owned_resume_or_404(
@@ -76,6 +81,28 @@ async def upload_resume(
     return resume_service.to_resume_read(resume, latest_version)
 
 
+@router.get("/history", response_model=Page[ResumeRead])
+async def get_resume_history(
+    page: int = _PAGE,
+    page_size: int = _PAGE_SIZE,
+    profile: CandidateProfile = Depends(get_current_candidate_profile),
+    db: AsyncSession = Depends(get_db),
+) -> Page[ResumeRead]:
+    """Registered ahead of GET /{resume_id} so "history" is never
+    swallowed by that path param."""
+    page_size = clamp_page_size(page_size)
+    resumes, total = await resume_service.list_resumes_page(
+        db, profile, page=page, page_size=page_size
+    )
+    latest_version = await resume_service.get_latest_version(db, profile)
+    return Page(
+        items=[resume_service.to_resume_read(r, latest_version) for r in resumes],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
 @router.get("/{resume_id}", response_model=ResumeRead)
 async def get_resume(
     resume_id: uuid.UUID,
@@ -124,11 +151,19 @@ async def request_review(
     resume = await _get_owned_resume_or_404(db, profile, resume_id)
 
     try:
-        review_request = await review_service.request_review(db, resume)
+        review_request = await review_service.request_review(db, resume, profile)
     except review_service.DuplicateActiveReviewError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A review is already in progress for this resume",
+        ) from exc
+    except InsufficientCreditError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"You don't have enough {exc.credit_type.value.replace('_', ' ').title()} "
+                f"credits. Required: {exc.required}, available: {exc.available}."
+            ),
         ) from exc
 
     # Built explicitly rather than via model_validate(): a freshly

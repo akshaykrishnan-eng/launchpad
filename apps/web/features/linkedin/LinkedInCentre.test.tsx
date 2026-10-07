@@ -1,12 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { getLinkedInProfile, getLinkedInReview, requestLinkedInReview, saveLinkedInUrl } =
+const { getLinkedInProfile, getLinkedInReview, requestLinkedInReview, saveLinkedInUrl, getCredits } =
   vi.hoisted(() => ({
     getLinkedInProfile: vi.fn(),
     getLinkedInReview: vi.fn(),
     requestLinkedInReview: vi.fn(),
     saveLinkedInUrl: vi.fn(),
+    getCredits: vi.fn(),
   }));
 vi.mock("@/lib/linkedin/client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/linkedin/client")>(
@@ -14,6 +15,7 @@ vi.mock("@/lib/linkedin/client", async () => {
   );
   return { ...actual, getLinkedInProfile, getLinkedInReview, requestLinkedInReview, saveLinkedInUrl };
 });
+vi.mock("@/lib/credits/client", () => ({ getCredits }));
 
 import { LinkedInCentre } from "./LinkedInCentre";
 
@@ -24,16 +26,32 @@ const PROFILE = {
   updated_at: "x",
 };
 
+const ZERO_BALANCES = [
+  { credit_type: "MOCK_INTERVIEW", balance: 0 },
+  { credit_type: "CAREER_COACHING", balance: 0 },
+  { credit_type: "RESUME_REVIEW", balance: 0 },
+  { credit_type: "LINKEDIN_REVIEW", balance: 0 },
+];
+
+const ONE_LINKEDIN_REVIEW_CREDIT = [
+  { credit_type: "MOCK_INTERVIEW", balance: 0 },
+  { credit_type: "CAREER_COACHING", balance: 0 },
+  { credit_type: "RESUME_REVIEW", balance: 0 },
+  { credit_type: "LINKEDIN_REVIEW", balance: 1 },
+];
+
 afterEach(() => {
   getLinkedInProfile.mockReset();
   getLinkedInReview.mockReset();
   requestLinkedInReview.mockReset();
   saveLinkedInUrl.mockReset();
+  getCredits.mockReset();
 });
 
 describe("LinkedInCentre", () => {
   it("shows a loading state before data arrives", () => {
     getLinkedInProfile.mockReturnValue(new Promise(() => {}));
+    getCredits.mockReturnValue(new Promise(() => {}));
 
     render(<LinkedInCentre />);
 
@@ -42,6 +60,7 @@ describe("LinkedInCentre", () => {
 
   it("shows the empty state and a save form when no profile exists", async () => {
     getLinkedInProfile.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
 
     render(<LinkedInCentre />);
 
@@ -52,6 +71,7 @@ describe("LinkedInCentre", () => {
 
   it("shows an error state and supports retry", async () => {
     getLinkedInProfile.mockResolvedValueOnce({ ok: false, status: 500, error: "boom" });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
     render(<LinkedInCentre />);
     expect(await screen.findByRole("alert")).toHaveTextContent("couldn't load");
 
@@ -59,38 +79,56 @@ describe("LinkedInCentre", () => {
     getLinkedInReview.mockResolvedValue({ ok: true, data: null });
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
-    expect(await screen.findByText("linkedin.com/in/example")).toBeInTheDocument();
+    expect((await screen.findAllByText("linkedin.com/in/example")).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the current URL when a profile exists", async () => {
     getLinkedInProfile.mockResolvedValue({ ok: true, data: PROFILE });
     getLinkedInReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ONE_LINKEDIN_REVIEW_CREDIT });
 
     render(<LinkedInCentre />);
 
-    expect(await screen.findByText("linkedin.com/in/example")).toBeInTheDocument();
+    // Shown once in the hero summary and once in the profile details card.
+    expect((await screen.findAllByText("linkedin.com/in/example")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /request review/i })).toBeInTheDocument();
+  });
+
+  it("shows the insufficient-credit state with a link to Credits when balance is 0", async () => {
+    getLinkedInProfile.mockResolvedValue({ ok: true, data: PROFILE });
+    getLinkedInReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+
+    render(<LinkedInCentre />);
+    await screen.findAllByText("linkedin.com/in/example");
+
+    expect(screen.getByText(/you need 1 linkedin review credit/i)).toBeInTheDocument();
+    expect(screen.getByText(/your balance: 0/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /view credits/i })).toHaveAttribute("href", "/app/credits");
+    expect(screen.queryByRole("button", { name: /request review/i })).not.toBeInTheDocument();
   });
 
   it("switches to edit mode, allowing cancel back to the saved URL", async () => {
     getLinkedInProfile.mockResolvedValue({ ok: true, data: PROFILE });
     getLinkedInReview.mockResolvedValue({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ONE_LINKEDIN_REVIEW_CREDIT });
 
     render(<LinkedInCentre />);
-    await screen.findByText("linkedin.com/in/example");
+    await screen.findAllByText("linkedin.com/in/example");
 
     fireEvent.click(screen.getByRole("button", { name: /edit url/i }));
     expect(screen.getByLabelText(/linkedin profile url/i)).toHaveValue(PROFILE.profile_url);
 
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-    expect(await screen.findByText("linkedin.com/in/example")).toBeInTheDocument();
+    expect((await screen.findAllByText("linkedin.com/in/example")).length).toBeGreaterThanOrEqual(1);
   });
 
   it("requests a review and shows the under-review state", async () => {
     getLinkedInProfile.mockResolvedValueOnce({ ok: true, data: PROFILE });
     getLinkedInReview.mockResolvedValueOnce({ ok: true, data: null });
+    getCredits.mockResolvedValue({ ok: true, data: ONE_LINKEDIN_REVIEW_CREDIT });
     render(<LinkedInCentre />);
-    await screen.findByText("linkedin.com/in/example");
+    await screen.findAllByText("linkedin.com/in/example");
 
     requestLinkedInReview.mockResolvedValue({
       ok: true,
@@ -127,6 +165,7 @@ describe("LinkedInCentre", () => {
 
   it("renders completed review feedback only when a result actually exists", async () => {
     getLinkedInProfile.mockResolvedValue({ ok: true, data: PROFILE });
+    getCredits.mockResolvedValue({ ok: true, data: ONE_LINKEDIN_REVIEW_CREDIT });
     getLinkedInReview.mockResolvedValue({
       ok: true,
       data: {
@@ -154,7 +193,7 @@ describe("LinkedInCentre", () => {
     // Feedback is collapsed by default, same as Resume Centre.
     expect(screen.queryByText("Clear headline.")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /view feedback/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view review/i }));
 
     expect(screen.getByText("76")).toBeInTheDocument();
     expect(screen.getByText("Clear headline.")).toBeInTheDocument();

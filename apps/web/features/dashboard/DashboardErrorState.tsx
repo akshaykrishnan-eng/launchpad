@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 
+import { ErrorState } from "@/components/ErrorState";
+
 export function DashboardErrorState() {
   const router = useRouter();
 
   return (
-    <div role="alert" style={{ padding: "2rem", textAlign: "center", display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <p>We couldn&apos;t load your dashboard right now.</p>
-      <button type="button" onClick={() => router.refresh()} style={{ alignSelf: "center" }}>
-        Retry
-      </button>
-    </div>
+    <ErrorState
+      message="We couldn't load your dashboard right now."
+      onRetry={() => router.refresh()}
+    />
   );
 }
