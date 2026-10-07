@@ -71,7 +71,7 @@ export function AdminShell({ email, children }: { email: string | null; children
         <AdminSidebar email={email} />
       </aside>
 
-      <main className="app-shell-main">{children}</main>
+      <main className="app-shell-main app-shell-main-standalone">{children}</main>
     </div>
   );
 }

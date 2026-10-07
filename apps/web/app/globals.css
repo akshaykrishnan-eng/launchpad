@@ -844,6 +844,10 @@ tbody tr:last-child td {
 }
 
 @media (min-width: 1024px) {
+  .app-shell-mobile-header {
+    display: none;
+  }
+
   .app-shell-sidebar {
     display: block;
     position: fixed;
@@ -855,7 +859,12 @@ tbody tr:last-child td {
     border-right: 1px solid var(--color-border);
   }
 
-  .app-shell-content {
+  /* Candidate shell: TopBar + main share this offset via the
+     .app-shell-content wrapper (see AppShell.tsx). Admin has no such
+     wrapper -- its <main> carries .app-shell-main-standalone directly
+     (see AdminShell.tsx) and gets the equivalent margin-left itself. */
+  .app-shell-content,
+  .app-shell-main-standalone {
     margin-left: var(--sidebar-width);
   }
 
