@@ -2,6 +2,7 @@ import type { NotificationType } from "@/lib/notifications/types";
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   EVENT_REGISTERED: "Event",
+  EVENT_PUBLISHED: "New Event",
   MOCK_INTERVIEW_BOOKED: "Mock Interview",
   RESUME_REVIEW_COMPLETED: "Resume Review",
   LINKEDIN_REVIEW_COMPLETED: "LinkedIn Review",

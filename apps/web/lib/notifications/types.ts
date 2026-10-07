@@ -1,5 +1,6 @@
 export type NotificationType =
   | "EVENT_REGISTERED"
+  | "EVENT_PUBLISHED"
   | "MOCK_INTERVIEW_BOOKED"
   | "RESUME_REVIEW_COMPLETED"
   | "LINKEDIN_REVIEW_COMPLETED";
@@ -9,6 +10,7 @@ export type Notification = {
   type: NotificationType;
   title: string;
   message: string;
+  event_id: string | null;
   read_at: string | null;
   is_read: boolean;
   created_at: string;

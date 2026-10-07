@@ -1338,6 +1338,192 @@ tbody tr:last-child td {
 }
 
 /* ---------------------------------------------------------------------
+   Notification list (Notifications Centre). Root cause of the rows
+   previously overlapping: unread notifications render as a bare
+   <button>, and the global `button` rule above sets a fixed
+   `height: 2.5rem` + `line-height: 1` + `align-items: center` --
+   correct for a one-line action button, but a notification row has
+   wrapping multi-line content (title + message + chip) that doesn't
+   fit in 40px. The content didn't get clipped (default
+   `overflow: visible`), it just spilled out of the squashed box and
+   over the next row. `.notification-row` resets every one of those
+   properties explicitly rather than special-casing padding/margins
+   around the overflow.
+   ------------------------------------------------------------------ */
+.notification-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notification-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  column-gap: var(--space-4);
+  width: 100%;
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* Only a <button class="notification-row"> needs the reset -- a plain
+   <li class="notification-row"> (non-clickable, already-read rows with
+   no destination) was never subject to the global `button` rule. */
+button.notification-row {
+  height: auto;
+  line-height: 1.5;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.notification-row:hover:not(:disabled) {
+  border-color: #c7ccd4;
+  background: var(--color-surface-muted);
+}
+
+.notification-row-unread {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-border-subtle);
+}
+
+button.notification-row-unread:hover:not(:disabled) {
+  background: #e2ebff;
+  border-color: var(--color-border-subtle);
+}
+
+.notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.notification-row-unread .notification-icon {
+  background: var(--color-surface);
+  color: var(--color-primary-hover);
+}
+
+.notification-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.notification-title-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.notification-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 0.375rem;
+}
+
+.notification-title {
+  flex: 1;
+  min-width: 10rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.notification-row-unread .notification-title {
+  font-weight: 700;
+}
+
+.notification-time {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.notification-message {
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
+.notification-chip {
+  align-self: flex-start;
+}
+
+.notification-chevron {
+  align-self: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .notification-row {
+    padding: 0.875rem 1rem;
+    column-gap: var(--space-3);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Notification filter tabs -- an underline tab strip rather than the
+   pill-button treatment used for e.g. admin status filters, since
+   "All / Unread / Read" reads better as lightweight text tabs than as
+   three boxed buttons competing with the notification rows below.
+   ------------------------------------------------------------------ */
+.notification-tabs {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.notification-tab {
+  height: auto;
+  padding: 0.625rem 0.0625rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.notification-tab:hover:not(:disabled) {
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.notification-tab[aria-selected="true"] {
+  color: var(--color-primary-hover);
+  border-bottom-color: var(--color-primary-hover);
+}
+
+.notification-tab-count {
+  margin-left: 0.375rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.notification-tab[aria-selected="true"] .notification-tab-count {
+  color: var(--color-primary-hover);
+}
+
+/* ---------------------------------------------------------------------
    Timeline item -- upcoming/past mock interviews, resume version
    history: a date badge + content row instead of a plain bordered box.
    ------------------------------------------------------------------ */

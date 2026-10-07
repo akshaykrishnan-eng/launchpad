@@ -15,6 +15,9 @@ vi.mock("@/lib/notifications/client", () => ({
   markNotificationRead,
 }));
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 import { NotificationsCentre } from "./NotificationsCentre";
 
 function notification(id: string, overrides: Partial<Record<string, unknown>> = {}) {
@@ -23,6 +26,7 @@ function notification(id: string, overrides: Partial<Record<string, unknown>> = 
     type: "EVENT_REGISTERED",
     title: `Notification ${id}`,
     message: `Message ${id}`,
+    event_id: null,
     read_at: null,
     is_read: false,
     created_at: "2026-10-01T00:00:00Z",
@@ -35,6 +39,7 @@ afterEach(() => {
   getUnreadNotificationCount.mockReset();
   markAllNotificationsRead.mockReset();
   markNotificationRead.mockReset();
+  push.mockReset();
 });
 
 describe("NotificationsCentre", () => {

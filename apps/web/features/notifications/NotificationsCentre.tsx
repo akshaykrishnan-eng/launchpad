@@ -116,14 +116,27 @@ export function NotificationsCentre() {
     );
   }
 
-  const visibleNotifications = (notifications ?? []).filter((notification) => {
+  const currentPageItems = notifications ?? [];
+  const pageUnreadCount = currentPageItems.filter((n) => !n.is_read).length;
+  // Counts reflect the current server-paginated page, matching what the
+  // tabs below actually filter (there's no server-side filter endpoint --
+  // see the `filter` state comment above) rather than the cross-page
+  // `total`/`unreadCount`, which would make e.g. "Unread 1" show while
+  // zero unread rows are visible on this page.
+  const filterCounts: Record<ReadFilter, number> = {
+    all: currentPageItems.length,
+    unread: pageUnreadCount,
+    read: currentPageItems.length - pageUnreadCount,
+  };
+
+  const visibleNotifications = currentPageItems.filter((notification) => {
     if (filter === "unread") return !notification.is_read;
     if (filter === "read") return notification.is_read;
     return true;
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div className="page-section">
       <div className="page-section-header">
         <h2 className="page-section-title">Your notifications</h2>
         <button
@@ -136,7 +149,7 @@ export function NotificationsCentre() {
         </button>
       </div>
 
-      <div role="tablist" aria-label="Filter notifications" style={{ display: "flex", gap: "0.375rem" }}>
+      <div role="tablist" aria-label="Filter notifications" className="notification-tabs">
         {READ_FILTERS.map((option) => {
           const isActive = filter === option.value;
           return (
@@ -145,22 +158,21 @@ export function NotificationsCentre() {
               type="button"
               role="tab"
               aria-selected={isActive}
-              className="btn-ghost btn-sm"
+              aria-label={option.label}
+              className="notification-tab"
               onClick={() => setFilter(option.value)}
-              style={
-                isActive
-                  ? { background: "var(--color-primary-subtle)", color: "var(--color-primary-hover)" }
-                  : undefined
-              }
             >
               {option.label}
+              <span className="notification-tab-count" aria-hidden="true">
+                {filterCounts[option.value]}
+              </span>
             </button>
           );
         })}
       </div>
 
       {visibleNotifications.length === 0 ? (
-        <p style={{ color: "var(--color-text-secondary)", padding: "1rem 0" }}>
+        <p className="page-section-hint" style={{ padding: "0.5rem 0" }}>
           No {filter} notifications on this page.
         </p>
       ) : (
