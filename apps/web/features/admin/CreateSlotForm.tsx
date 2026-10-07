@@ -98,9 +98,25 @@ export function CreateSlotForm() {
         />
       </label>
 
-      <button type="submit" className="btn-primary" disabled={isSubmitting}>
-        {isSubmitting ? "Creating..." : "Create Slot"}
-      </button>
+      {/* A label-shaped wrapper (invisible text + the same top/bottom
+          spacing `label`/`label > input` get from globals.css) so the
+          button's own input-height row lines up with the Interview
+          type/Start/Duration fields under `align-items: flex-end`,
+          instead of the button (no label text line, no margin-bottom)
+          sitting lower than the actual inputs. */}
+      <div style={{ display: "flex", flexDirection: "column", marginBottom: "var(--space-4)" }}>
+        <span aria-hidden="true" style={{ fontSize: "0.875rem", fontWeight: 500, visibility: "hidden" }}>
+          Create
+        </span>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={isSubmitting}
+          style={{ marginTop: "var(--space-2)" }}
+        >
+          {isSubmitting ? "Creating..." : "Create Slot"}
+        </button>
+      </div>
 
       {error && (
         <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem", width: "100%" }}>
