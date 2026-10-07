@@ -12,7 +12,7 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <div>
         <BackLink href="/app">Back to Dashboard</BackLink>
         <PageHeader

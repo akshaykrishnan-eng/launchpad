@@ -17,8 +17,20 @@ import type { Notification } from "@/lib/notifications/types";
 
 const PAGE_SIZE = 20;
 
+type ReadFilter = "all" | "unread" | "read";
+
+const READ_FILTERS: { value: ReadFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "read", label: "Read" },
+];
+
 export function NotificationsCentre() {
   const [page, setPage] = useState(1);
+  // Client-side only, over the current server-paginated page's items --
+  // there's no server-side filter endpoint, and adding one just for
+  // this cosmetic tab isn't warranted (PRD/Phase 13.5 brief section 8).
+  const [filter, setFilter] = useState<ReadFilter>("all");
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [total, setTotal] = useState(0);
   // Tracked separately from the current page's items: whether "Mark
@@ -95,12 +107,20 @@ export function NotificationsCentre() {
 
   if ((notifications ?? []).length === 0) {
     return (
-      <EmptyState
-        heading="No notifications yet"
-        description="Important updates about your Launchpad activity will appear here."
-      />
+      <div style={{ maxWidth: "28rem", margin: "2.5rem auto" }}>
+        <EmptyState
+          heading="No notifications yet"
+          description="Important updates about your Launchpad activity will appear here."
+        />
+      </div>
     );
   }
+
+  const visibleNotifications = (notifications ?? []).filter((notification) => {
+    if (filter === "unread") return !notification.is_read;
+    if (filter === "read") return notification.is_read;
+    return true;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -116,7 +136,36 @@ export function NotificationsCentre() {
         </button>
       </div>
 
-      <NotificationList notifications={notifications ?? []} onMarkRead={handleMarkRead} />
+      <div role="tablist" aria-label="Filter notifications" style={{ display: "flex", gap: "0.375rem" }}>
+        {READ_FILTERS.map((option) => {
+          const isActive = filter === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              className="btn-ghost btn-sm"
+              onClick={() => setFilter(option.value)}
+              style={
+                isActive
+                  ? { background: "var(--color-primary-subtle)", color: "var(--color-primary-hover)" }
+                  : undefined
+              }
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {visibleNotifications.length === 0 ? (
+        <p style={{ color: "var(--color-text-secondary)", padding: "1rem 0" }}>
+          No {filter} notifications on this page.
+        </p>
+      ) : (
+        <NotificationList notifications={visibleNotifications} onMarkRead={handleMarkRead} />
+      )}
 
       <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
     </div>

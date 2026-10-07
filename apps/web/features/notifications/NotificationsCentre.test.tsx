@@ -165,6 +165,35 @@ describe("NotificationsCentre", () => {
     expect(screen.getByRole("button", { name: /mark all as read/i })).toBeDisabled();
   });
 
+  it("filters the current page's notifications by read state", async () => {
+    getNotifications.mockResolvedValue({
+      ok: true,
+      data: {
+        items: [notification("unread1"), notification("read1", { is_read: true, read_at: "2026-10-01T01:00:00Z" })],
+        total: 2,
+        page: 1,
+        page_size: 20,
+      },
+    });
+    getUnreadNotificationCount.mockResolvedValue({ ok: true, data: { unread_count: 1 } });
+
+    render(<NotificationsCentre />);
+    await screen.findByText("Notification unread1");
+    expect(screen.getByText("Notification read1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Unread" }));
+    expect(screen.getByText("Notification unread1")).toBeInTheDocument();
+    expect(screen.queryByText("Notification read1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Read" }));
+    expect(screen.queryByText("Notification unread1")).not.toBeInTheDocument();
+    expect(screen.getByText("Notification read1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "All" }));
+    expect(screen.getByText("Notification unread1")).toBeInTheDocument();
+    expect(screen.getByText("Notification read1")).toBeInTheDocument();
+  });
+
   it("paginates across pages", async () => {
     getNotifications.mockResolvedValueOnce({
       ok: true,

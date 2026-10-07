@@ -831,16 +831,19 @@ tbody tr:last-child td {
   box-shadow: var(--shadow-md);
 }
 
+.app-shell-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+}
+
 .app-shell-main {
   flex: 1;
   padding: 1.5rem 1rem 3rem;
 }
 
 @media (min-width: 1024px) {
-  .app-shell-mobile-header {
-    display: none;
-  }
-
   .app-shell-sidebar {
     display: block;
     position: fixed;
@@ -852,9 +855,200 @@ tbody tr:last-child td {
     border-right: 1px solid var(--color-border);
   }
 
-  .app-shell-main {
+  .app-shell-content {
     margin-left: var(--sidebar-width);
+  }
+
+  .app-shell-main {
     padding: 2.5rem 3rem 4rem;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Global candidate top bar (Phase 13.5) -- sticky above the main
+   content on every authenticated candidate page, rendered once by
+   AppShell. Visible at every breakpoint: the mobile hamburger trigger
+   (opens the existing drawer) only shows below 1024px, the search
+   field collapses below 640px, and the bell/profile area is always
+   reachable.
+   ------------------------------------------------------------------ */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: var(--header-height);
+  padding: 0 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-topbar-menu-trigger {
+  flex-shrink: 0;
+}
+
+.app-topbar-search {
+  position: relative;
+  display: none;
+  flex: 1;
+  max-width: 22rem;
+  align-items: center;
+}
+
+.app-topbar-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.app-topbar-search-input {
+  padding-left: 2.25rem;
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-subtle);
+}
+
+.app-topbar-search-input:hover {
+  border-color: var(--color-border);
+}
+
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.app-topbar-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.app-topbar-bell:hover {
+  background: var(--color-surface-muted);
+}
+
+.app-topbar-bell-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+
+.app-topbar-user {
+  position: relative;
+}
+
+.app-topbar-user-trigger {
+  height: 2.5rem;
+  padding: 0 0.5rem 0 0.375rem;
+  border: 1px solid transparent;
+  background: transparent;
+  gap: 0.5rem;
+}
+
+.app-topbar-user-trigger:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  border-color: transparent;
+}
+
+.app-topbar-avatar {
+  width: 1.875rem;
+  height: 1.875rem;
+  font-size: 0.75rem;
+}
+
+.app-topbar-user-text {
+  display: none;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.app-topbar-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar-user-role {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.app-topbar-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 12rem;
+  padding: 0.375rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.app-topbar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  justify-content: flex-start;
+}
+
+.app-topbar-menu-item:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.app-topbar-menu-item-danger {
+  color: var(--color-danger);
+}
+
+.app-topbar-menu-item-danger:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+
+@media (min-width: 640px) {
+  .app-topbar-search {
+    display: flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-topbar {
+    padding: 0 2rem;
+  }
+
+  .app-topbar-menu-trigger {
+    display: none;
+  }
+
+  .app-topbar-user-text {
+    display: flex;
   }
 }
 

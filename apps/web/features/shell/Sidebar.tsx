@@ -12,7 +12,18 @@ import {
 } from "@/features/shell/navigation";
 import { isAdminUser } from "@/lib/auth/roles";
 
-export function Sidebar({ email, roles }: { email: string | null; roles: string[] }) {
+export function Sidebar({
+  email,
+  roles,
+  unreadCount,
+}: {
+  email: string | null;
+  roles: string[];
+  /** Shared with the global top bar's bell via AppShell -- see
+   * NotificationBadge's `unreadCount` prop. Undefined (not passed)
+   * falls back to NotificationBadge fetching its own count. */
+  unreadCount?: number | null;
+}) {
   const isAdmin = isAdminUser({ roles });
   const initial = email ? email.trim()[0]?.toUpperCase() : "?";
 
@@ -65,7 +76,11 @@ export function Sidebar({ email, roles }: { email: string | null; roles: string[
             <NavLink
               key={item.href}
               {...item}
-              badge={item.href === NOTIFICATIONS_NAV_HREF ? <NotificationBadge /> : undefined}
+              badge={
+                item.href === NOTIFICATIONS_NAV_HREF ? (
+                  <NotificationBadge unreadCount={unreadCount} />
+                ) : undefined
+              }
             />
           ))}
         </div>
