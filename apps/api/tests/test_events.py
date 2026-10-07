@@ -1,14 +1,18 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.event import EventStatus, EventType
 from app.db.session import AsyncSessionLocal
+from app.models.user import User
 from app.services import event as event_service
+from app.services import notification as notification_service
 from tests.helpers import candidate_client, role_client
 
 ADMIN_BASE = "/api/v1/admin/events"
 CANDIDATE_BASE = "/api/v1/candidate/events"
+NOTIFICATIONS_BASE = "/api/v1/candidate/notifications"
 
 
 def _future(hours: int = 24) -> datetime:
@@ -294,3 +298,148 @@ async def test_admin_can_view_registrations_and_count(client: TestClient) -> Non
     body = registrations.json()
     assert body["total"] == 1
     assert body["items"][0]["candidate"]["email"] == "events.regview@example.com"
+
+
+# --- Phase 13.1: EVENT_PUBLISHED notifications -----------------------------
+
+
+async def _user_id(email: str):
+    async with AsyncSessionLocal() as db:
+        user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+        return user.id
+
+
+async def test_draft_event_does_not_notify_candidates(client: TestClient) -> None:
+    candidate_client(client, "events.draftnotify@example.com")
+    await _create_event(title="Still A Draft", status=EventStatus.DRAFT)
+
+    async with AsyncSessionLocal() as db:
+        recipient_ids = await notification_service.get_active_candidate_user_ids(db)
+        notifications, total = await notification_service.list_notifications_page(
+            db, recipient_ids[0], page=1, page_size=20
+        )
+    assert total == 0
+    assert notifications == []
+
+
+async def test_publishing_draft_event_notifies_active_candidates(client: TestClient) -> None:
+    candidate_headers = candidate_client(client, "events.publishnotify@example.com")
+    admin_headers = await _admin_headers(client, "events.publishnotify.admin@example.com")
+    event = await _create_event(title="Resume Workshop", status=EventStatus.DRAFT)
+
+    response = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "PUBLISHED"
+
+    listed = client.get(NOTIFICATIONS_BASE, headers=candidate_headers)
+    assert listed.status_code == 200
+    items = listed.json()["items"]
+    assert len(items) == 1
+    assert items[0]["type"] == "EVENT_PUBLISHED"
+    assert items[0]["event_id"] == str(event.id)
+    assert "Resume Workshop" in items[0]["message"]
+    assert items[0]["is_read"] is False
+
+
+async def test_admin_and_super_admin_do_not_receive_candidate_event_notifications(
+    client: TestClient,
+) -> None:
+    admin_headers = await _admin_headers(client, "events.adminrecv.admin@example.com")
+    super_admin_headers = await role_client(
+        client, "events.adminrecv.superadmin@example.com", "SUPER_ADMIN"
+    )
+    event = await _create_event(title="Admins Excluded", status=EventStatus.DRAFT)
+
+    publish = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert publish.status_code == 200
+
+    admin_id = await _user_id("events.adminrecv.admin@example.com")
+    super_admin_id = await _user_id("events.adminrecv.superadmin@example.com")
+    async with AsyncSessionLocal() as db:
+        _, admin_unread_total = await notification_service.list_notifications_page(
+            db, admin_id, page=1, page_size=20
+        )
+        _, super_admin_unread_total = await notification_service.list_notifications_page(
+            db, super_admin_id, page=1, page_size=20
+        )
+    assert admin_unread_total == 0
+    assert super_admin_unread_total == 0
+    assert super_admin_headers  # role_client succeeded
+
+
+async def test_non_candidate_roles_do_not_receive_event_published_notifications(
+    client: TestClient,
+) -> None:
+    admin_headers = await _admin_headers(client, "events.nonCandidate.admin@example.com")
+    await role_client(client, "events.nonCandidate.interviewer@example.com", "INTERVIEWER")
+    event = await _create_event(title="Interviewers Excluded", status=EventStatus.DRAFT)
+
+    publish = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert publish.status_code == 200
+
+    interviewer_id = await _user_id("events.nonCandidate.interviewer@example.com")
+    async with AsyncSessionLocal() as db:
+        _, total = await notification_service.list_notifications_page(
+            db, interviewer_id, page=1, page_size=20
+        )
+    assert total == 0
+
+
+async def test_republishing_already_published_event_does_not_duplicate_notifications(
+    client: TestClient,
+) -> None:
+    candidate_headers = candidate_client(client, "events.republish@example.com")
+    admin_headers = await _admin_headers(client, "events.republish.admin@example.com")
+    event = await _create_event(title="Republish Me", status=EventStatus.DRAFT)
+
+    first = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert first.status_code == 200
+
+    second = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert second.status_code == 200
+    assert second.json()["status"] == "PUBLISHED"
+
+    listed = client.get(NOTIFICATIONS_BASE, headers=candidate_headers)
+    assert listed.json()["total"] == 1
+
+
+async def test_multiple_active_candidates_each_receive_exactly_one_notification(
+    client: TestClient,
+) -> None:
+    first_headers = candidate_client(client, "events.multi1@example.com")
+    second_headers = candidate_client(client, "events.multi2@example.com")
+    admin_headers = await _admin_headers(client, "events.multi.admin@example.com")
+    event = await _create_event(title="Career Fair", status=EventStatus.DRAFT)
+
+    response = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert response.status_code == 200
+
+    first_listed = client.get(NOTIFICATIONS_BASE, headers=first_headers)
+    second_listed = client.get(NOTIFICATIONS_BASE, headers=second_headers)
+    assert first_listed.json()["total"] == 1
+    assert second_listed.json()["total"] == 1
+    assert first_listed.json()["items"][0]["event_id"] == str(event.id)
+    assert second_listed.json()["items"][0]["event_id"] == str(event.id)
+
+
+async def test_event_publication_succeeds_even_if_notification_creation_fails(
+    client: TestClient, monkeypatch
+) -> None:
+    candidate_client(client, "events.notifyfail@example.com")
+    admin_headers = await _admin_headers(client, "events.notifyfail.admin@example.com")
+    event = await _create_event(title="Notify Failure", status=EventStatus.DRAFT)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated notification outage")
+
+    # Patches the sqlalchemy `insert` notify_event_published_bulk itself
+    # calls, so the failure is caught by *that function's own*
+    # try/except (mirrors test_notification_creation_failure_does_not_
+    # break_event_registration in test_notifications.py) rather than
+    # bypassing it -- the publish route has no try/except of its own
+    # around the notify call, by design (see app/api/admin.py).
+    monkeypatch.setattr(notification_service, "insert", _boom)
+
+    response = client.post(f"{ADMIN_BASE}/{event.id}/publish", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "PUBLISHED"

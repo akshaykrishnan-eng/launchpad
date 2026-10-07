@@ -2,11 +2,15 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.notification import NotificationType
+from app.core.roles import RoleName
 from app.models.notification import Notification
+from app.models.role import Role
+from app.models.user import User
+from app.models.user_role import UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +22,7 @@ async def create_notification(
     type: NotificationType,
     title: str,
     message: str,
+    event_id: uuid.UUID | None = None,
 ) -> Notification:
     """The single place a Notification row is ever constructed. Business
     services call the type-specific `notify_*` helpers below rather
@@ -25,7 +30,11 @@ async def create_notification(
     notification creation centralized (PRD section 4) and makes a
     future email/push channel a change in one place."""
     notification = Notification(
-        recipient_user_id=recipient_user_id, type=type, title=title, message=message
+        recipient_user_id=recipient_user_id,
+        type=type,
+        title=title,
+        message=message,
+        event_id=event_id,
     )
     db.add(notification)
     await db.commit()
@@ -40,6 +49,7 @@ async def create_notification_safe(
     type: NotificationType,
     title: str,
     message: str,
+    event_id: uuid.UUID | None = None,
 ) -> Notification | None:
     """Same as create_notification, but never raises: notifications are
     a secondary side effect of an already-succeeded primary operation
@@ -48,7 +58,12 @@ async def create_notification_safe(
     section 15). Every notify_* helper below goes through this."""
     try:
         return await create_notification(
-            db, recipient_user_id=recipient_user_id, type=type, title=title, message=message
+            db,
+            recipient_user_id=recipient_user_id,
+            type=type,
+            title=title,
+            message=message,
+            event_id=event_id,
         )
     except Exception:
         logger.exception(
@@ -67,6 +82,63 @@ async def notify_event_registered(
         title="You're registered",
         message=f"You're registered for {event_title}.",
     )
+
+
+async def get_active_candidate_user_ids(db: AsyncSession) -> list[uuid.UUID]:
+    """All active (User.is_active) users holding the CANDIDATE role --
+    the only recipient set EVENT_PUBLISHED notifications ever use. Never
+    ADMIN/SUPER_ADMIN/INTERVIEWER/CAREER_COACH/RECRUITER."""
+    result = await db.execute(
+        select(User.id)
+        .join(UserRole, UserRole.user_id == User.id)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(Role.name == RoleName.CANDIDATE.value, User.is_active.is_(True))
+    )
+    return list(result.scalars())
+
+
+async def notify_event_published_bulk(
+    db: AsyncSession,
+    recipient_user_ids: list[uuid.UUID],
+    *,
+    event_id: uuid.UUID,
+    event_title: str,
+) -> None:
+    """Fans an EVENT_PUBLISHED notification out to many candidates in one
+    statement rather than one `create_notification` call (and commit) per
+    recipient (CLAUDE.md section on bulk creation / PRD section 6). Uses
+    the same multi-row `insert().values([...])` pattern as
+    app/services/roles.py:seed_roles, the one existing bulk-insert
+    precedent in this codebase.
+
+    Same failure-isolation contract as create_notification_safe: never
+    raises -- event publication has already committed by the time this
+    runs, so a failure here must never surface as a publish failure."""
+    if not recipient_user_ids:
+        return
+
+    title = "New event available"
+    message = f"{event_title} is now open for registration."
+    try:
+        await db.execute(
+            insert(Notification).values(
+                [
+                    {
+                        "recipient_user_id": recipient_user_id,
+                        "type": NotificationType.EVENT_PUBLISHED.value,
+                        "title": title,
+                        "message": message,
+                        "event_id": event_id,
+                    }
+                    for recipient_user_id in recipient_user_ids
+                ]
+            )
+        )
+        await db.commit()
+    except Exception:
+        logger.exception(
+            "Failed to create EVENT_PUBLISHED notifications for event_id=%s", event_id
+        )
 
 
 def _interview_type_label(interview_type: str) -> str:

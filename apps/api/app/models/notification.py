@@ -40,6 +40,14 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # Optional reference to the Event this notification is about (currently
+    # only EVENT_PUBLISHED sets this). Nullable/generic rather than a new
+    # model, so a future event-related notification type can reuse it; SET
+    # NULL on event delete so the notification itself is never lost.
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("events.id", ondelete="SET NULL"), nullable=True
+    )
+
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

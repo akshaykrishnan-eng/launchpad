@@ -299,3 +299,28 @@ notification call, so no separate notification-level duplicate check
 was added. A future trigger point without an existing idempotency
 guard would need one of its own for the same reason -- not a
 notification-specific unique constraint.
+
+**Bulk fan-out (Phase 13.1).** `EVENT_PUBLISHED` is the first
+notification type with many recipients instead of one (every active
+candidate, not the one candidate who just acted). Looping the
+single-row `create_notification_safe` would mean one commit per
+recipient, so `notify_event_published_bulk` instead issues a single
+multi-row `insert(Notification).values([...])` -- the same bulk-insert
+idiom `app/services/roles.py:seed_roles` already established for
+`Role` -- wrapped in the same catch-and-log failure-isolation contract
+as `create_notification_safe`. The "DRAFT -> PUBLISHED only" idempotency
+check (not every transition into PUBLISHED) lives in the route
+(`app/api/admin.py:publish_event`, which captures the pre-transition
+status before calling `set_event_status`), not in the service layer,
+since `set_event_status` is a generic setter with no transition
+history of its own.
+
+**Notification -> destination (Phase 13.1).** `Notification` gained an
+optional `event_id` (nullable FK, `ondelete=SET NULL`) -- generic
+enough for any future event-related notification type, not a
+one-off field. On the frontend, `lib/notifications/destinations.ts`
+maps notification type -> an optional destination route rather than
+hardcoding per-type navigation inside `NotificationList`; a type with
+no entry in that map stays purely informational (click = mark as
+read only), which is still true for every notification type except
+`EVENT_PUBLISHED`.

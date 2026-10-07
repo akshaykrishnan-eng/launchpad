@@ -13,9 +13,9 @@
 
 **Project:** Ellow Launchpad
 
-**Current implementation:** Phase 13 complete
+**Current implementation:** Phase 13.1 complete
 
-**Current state:** MVP candidate platform + admin operational platform implemented through Phase 10, a Phase 11 visual-hierarchy refinement of the candidate-facing UI (shared `PageHero` pattern on Credits/Resume/LinkedIn/Mock Interviews), a Phase 12 Events & Webinars MVP (candidate `/app/events` list/detail/registration, admin `/admin/events` CRUD + lifecycle + registrations), and a Phase 13 in-app Notifications V1 (candidate `/app/notifications`, sidebar unread badge, wired into event registration/mock interview booking/resume+LinkedIn review completion). Credits are a dedicated candidate-facing platform section (`/app/credits`), Resume Review / LinkedIn Review both consume credits server-side, and primary candidate pages now show only a recent-history preview with dedicated, server-side-paginated history pages (`/app/credits/history`, `/app/resume/history`) for the complete record.
+**Current state:** MVP candidate platform + admin operational platform implemented through Phase 10, a Phase 11 visual-hierarchy refinement of the candidate-facing UI (shared `PageHero` pattern on Credits/Resume/LinkedIn/Mock Interviews), a Phase 12 Events & Webinars MVP (candidate `/app/events` list/detail/registration, admin `/admin/events` CRUD + lifecycle + registrations), and a Phase 13 in-app Notifications V1 (candidate `/app/notifications`, sidebar unread badge, wired into event registration/mock interview booking/resume+LinkedIn review completion), and a Phase 13.1 follow-up wiring event publication into that same notification system (`EVENT_PUBLISHED`, candidate click-through to the event detail page). Credits are a dedicated candidate-facing platform section (`/app/credits`), Resume Review / LinkedIn Review both consume credits server-side, and primary candidate pages now show only a recent-history preview with dedicated, server-side-paginated history pages (`/app/credits/history`, `/app/resume/history`) for the complete record.
 
 **Next immediate task:** Git cleanup and phase-by-phase commits/tags (still outstanding from before Phase 11 -- see section 23).
 
@@ -1161,6 +1161,46 @@ Backend: 243/243 pytest passing (223 existing + 20 new) inside an isolated throw
 
 ---
 
+# 19.7 Phase 13.1 — Notify Candidates When an Event Is Published ✅
+
+**Scope:** Small follow-up to Phase 13. When an ADMIN/SUPER_ADMIN publishes an event (DRAFT -> PUBLISHED), active candidates receive an in-app `EVENT_PUBLISHED` notification linking to the event detail page. No new notification model, no email/push/SMS, no audience targeting, no background workers.
+
+## Data model (additive)
+
+```text
+Notification.event_id  -- nullable FK -> events.id, ondelete SET NULL
+```
+
+The only schema change: the existing Phase 13 `Notification` row had no field that could reference the event it's about. `event_id` is deliberately generic (not `EVENT_PUBLISHED`-specific) so any future event-related notification type can reuse it. Migration: `9e3f6a2b1c7d_notifications_event_id.py` (down_revision `4077ba4a7f7d`). `NotificationType.EVENT_PUBLISHED` added to the existing Python-side `StrEnum` -- no migration needed for that part, same as every other notification type.
+
+## Backend
+
+- `app/services/notification.py`:
+  - `create_notification`/`create_notification_safe` gained an additive optional `event_id` parameter (defaults `None`, zero behavior change for the four existing `notify_*` callers).
+  - `get_active_candidate_user_ids(db)` -- `User` join `UserRole` join `Role` where `Role.name == "CANDIDATE"` and `User.is_active`. This is the "active candidate" definition used (the project's only existing active-flag is `User.is_active`; `CandidateProfile.current_status` is an unrelated career-stage field, not an account-active flag).
+  - `notify_event_published_bulk(db, recipient_user_ids, event_id=..., event_title=...)` -- fans the notification out to many candidates with a single multi-row `insert(Notification).values([...])` statement (one commit, not one per recipient), the same bulk-insert idiom `app/services/roles.py:seed_roles` already established for `Role`. Never raises: wrapped in the same catch-and-log failure-isolation pattern as `create_notification_safe`, since event publication has already committed by the time this runs.
+- `app/api/admin.py:publish_event` -- captures `was_draft = event.status == EventStatus.DRAFT` *before* calling `event_service.set_event_status`, and only fans out notifications when `was_draft` is true. This is the idempotency guard: the route already tolerates re-POSTing `/publish` on an already-PUBLISHED event (returns 200, no-op status-wise), and without this guard every re-publish would re-notify every candidate.
+- `app/schemas/notification.py:NotificationRead` gained `event_id: uuid.UUID | None`.
+- Tests: 7 new tests in `tests/test_events.py` (draft doesn't notify, publish notifies all active candidates, ADMIN/SUPER_ADMIN excluded, non-candidate roles (INTERVIEWER) excluded, re-publish doesn't duplicate, multiple candidates each get exactly one, publish succeeds even when the notification fan-out's own try/except path is exercised).
+
+## Frontend
+
+- `lib/notifications/types.ts` -- `NotificationType` gained `"EVENT_PUBLISHED"`; `Notification` gained `event_id: string | null`.
+- `lib/notifications/labels.ts` -- `EVENT_PUBLISHED: "New Event"` badge label.
+- `lib/notifications/destinations.ts` (new, small) -- a notification-type -> destination-route map, `getNotificationDestination(notification)`. Only `EVENT_PUBLISHED` resolves to a destination (`/app/events/{event_id}`) today; every other type returns `null` (click = mark-as-read only, as before). Deliberately a type -> function map rather than hardcoded per-type branching inside the list component, so a future notification type with a destination is a one-line addition here, not a change to `NotificationList`.
+- `features/notifications/NotificationList.tsx` -- added a small leading icon (reusing the existing `CalendarIcon`) for notification types present in a `NOTIFICATION_TYPE_ICONS` map (only `EVENT_PUBLISHED` has one; every other type renders exactly as before, no icon). Clicking a row now also navigates via `useRouter().push(...)` when `getNotificationDestination` resolves a destination; an already-read `EVENT_PUBLISHED` row (previously a static, non-interactive `<li>`) is now also clickable purely to navigate, without re-triggering mark-as-read. `/app/notifications` itself (tabs, pagination, mark-all-read) is untouched.
+- Tests: new `features/notifications/NotificationList.test.tsx` (icon presence/absence, navigation on click for unread/read EVENT_PUBLISHED rows, no navigation for types without a destination); `NotificationsCentre.test.tsx` updated with a `next/navigation` mock and an `event_id` field on its notification fixture.
+
+## Security / IDOR
+
+No new surface: `GET /candidate/notifications` already derives `recipient_user_id` from the authenticated session (never client-supplied), so an `EVENT_PUBLISHED` notification is only ever readable by the candidate it was created for. The linked event is always one that was just transitioned to PUBLISHED by this same request, so the candidate's own existing `GET /candidate/events/{id}` authorization (DRAFT events already hidden from candidates) governs what the destination route can show -- no admin-only field is exposed through the notification.
+
+## Verified
+
+Backend: 250/250 pytest passing (243 existing + 7 new) inside an isolated throwaway Postgres container (not the shared dev stack), `ruff check .` clean, `alembic current` confirms head `9e3f6a2b1c7d`. Frontend: 266/266 Vitest passing (261 existing + 5 new, in the new `NotificationList.test.tsx`), `tsc --noEmit` clean, `eslint` clean, `next build` clean. Live verification against the running Docker dev stack (rebuilt `api`/`web` images, migration applied automatically on container start): registered a candidate and an admin, created a DRAFT event, confirmed zero notifications/unread-count for the candidate, published it, confirmed the candidate received exactly one `EVENT_PUBLISHED` notification referencing the correct `event_id` and unread-count incremented to 1, confirmed the linked event detail resolves via the candidate's own events endpoint, marked it read and confirmed unread-count returned to 0, then re-published the already-PUBLISHED event and confirmed no duplicate notification was created. Test data (both users, the test event) was deleted afterward.
+
+---
+
 # 20. Explicitly Deferred Features
 
 The following are NOT currently implemented:
@@ -1297,6 +1337,7 @@ Phase 10     History UX / Pagination     ✅
 Phase 11     Candidate UI Visual Refinement ✅
 Phase 12     Events & Webinars MVP       ✅
 Phase 13     Notifications V1            ✅
+Phase 13.1   Event Published Notifications ✅
 ```
 
 ---

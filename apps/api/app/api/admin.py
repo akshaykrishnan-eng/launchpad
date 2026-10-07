@@ -456,7 +456,22 @@ async def publish_event(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only a draft event can be published",
         )
+    # Captured before the transition: only a genuine DRAFT -> PUBLISHED
+    # move represents the event becoming newly available. Re-publishing
+    # an already-PUBLISHED event (this route's own idempotent no-op path)
+    # must not notify every candidate again.
+    was_draft = event.status == EventStatus.DRAFT
     await event_service.set_event_status(db, event, EventStatus.PUBLISHED)
+
+    # Fire-and-forget: publication already succeeded and committed above,
+    # so a notification failure here must never surface as a publish
+    # failure (see notification_service.notify_event_published_bulk).
+    if was_draft:
+        recipient_ids = await notification_service.get_active_candidate_user_ids(db)
+        await notification_service.notify_event_published_bulk(
+            db, recipient_ids, event_id=event.id, event_title=event.title
+        )
+
     return await _get_event_admin_item_or_404(db, event_id)
 
 

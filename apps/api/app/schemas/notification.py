@@ -17,6 +17,7 @@ class NotificationRead(BaseModel):
     type: NotificationType
     title: str
     message: str
+    event_id: uuid.UUID | None
     read_at: datetime | None
     created_at: datetime
 
