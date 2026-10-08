@@ -12,7 +12,7 @@ export const READINESS_ITEMS: {
   { key: "personal_information", label: "Personal Information", href: "/onboarding/about" },
   { key: "education", label: "Education", href: "/onboarding/education" },
   { key: "skills", label: "Skills", href: "/onboarding/skills" },
-  { key: "experience", label: "Work Experience", href: "/app/profile" },
+  { key: "experience", label: "Work Experience", href: "/onboarding/experience" },
   { key: "career_preferences", label: "Career Preferences", href: "/onboarding/career" },
   { key: "career_goal", label: "Career Goal", href: "/onboarding/goal" },
 ];
