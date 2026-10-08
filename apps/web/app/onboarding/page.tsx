@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { BackLink } from "@/components/BackLink";
 import { DashboardIcon, InterviewIcon, LinkedInIcon, ResumeIcon } from "@/components/icons";
 import { ProgressRing } from "@/components/ProgressRing";
-import { ModuleSummaryCard } from "@/features/dashboard/ModuleSummaryCard";
-import { OnboardingJourney } from "@/features/onboarding/OnboardingJourney";
 import { OnboardingOverviewError } from "@/features/onboarding/OnboardingOverviewError";
 import {
   buildNextStepPanel,
@@ -13,6 +11,7 @@ import {
   buildPostOnboardingRecommendation,
   type PostOnboardingRecommendationType,
 } from "@/features/onboarding/overview";
+import { ONBOARDING_STEPS } from "@/features/onboarding/steps";
 import { getServerDashboard } from "@/lib/candidate/backend";
 import { getAccessToken } from "@/lib/auth/session";
 import { getServerLinkedInProfile } from "@/lib/linkedin/backend";
@@ -36,7 +35,7 @@ export default async function OnboardingOverviewPage() {
 
   if (!dashboard) {
     return (
-      <div className="page page-narrow onboarding-page">
+      <div className="page onboarding-page">
         <h1 className="visually-hidden">Onboarding</h1>
         <OnboardingOverviewError />
       </div>
@@ -47,12 +46,8 @@ export default async function OnboardingOverviewPage() {
   const journey = buildOnboardingJourney(components);
   const panel = buildNextStepPanel(journey, dashboard.next_action);
   const isFullyComplete = dashboard.next_action.type === "PROFILE_COMPLETE";
-  const remaining = journey.steps.filter((step) => step.state !== "complete").length;
+  const completedCount = journey.steps.filter((s) => s.state === "complete").length;
 
-  // Only needed for the "what should I do next" recommendation below,
-  // which only renders once onboarding itself is complete -- no need
-  // to pay for these round trips while the candidate is still partway
-  // through the guided steps.
   let recommendation = null;
   if (isFullyComplete) {
     const [resumes, linkedInProfile, credits] = await Promise.all([
@@ -67,78 +62,84 @@ export default async function OnboardingOverviewPage() {
   }
 
   return (
-    <div className="page page-narrow onboarding-page">
+    <div className="page onboarding-page onboarding-hub-page">
+      {/* Back to Dashboard — only for candidates who have completed onboarding */}
+      {isFullyComplete && (
+        <div>
+          <BackLink href="/app">Back to Dashboard</BackLink>
+        </div>
+      )}
+
+      {/* Page header */}
       <div>
-        <BackLink href="/app">Back to Dashboard</BackLink>
+        <p className="step-eyebrow">Launchpad Onboarding</p>
+        <h1 className="onboarding-hub-heading">
+          {isFullyComplete ? "Your profile is complete 🎉" : "Let's build your Launchpad profile"}
+        </h1>
+        <p className="onboarding-hub-subheading">
+          {isFullyComplete
+            ? "Great start. Let's get your career profile ready for opportunities."
+            : "Tell us about your background and career goals so we can personalize your Launchpad experience."}
+        </p>
       </div>
 
-      <section className="hero-panel" aria-label="Onboarding progress">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: "1.5rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ position: "relative" }}>
-            <p className="hero-eyebrow">Launchpad onboarding</p>
-            <h1 className="hero-title">
-              {isFullyComplete ? "Your profile is complete 🎉" : "Complete your Launchpad profile"}
-            </h1>
-            <p className="hero-subtitle">
-              {isFullyComplete
-                ? "Great start. Let's get your career profile ready for opportunities."
-                : "Build your profile so Launchpad can better understand your background and career goals."}
+      {/* Two-column: current step card + progress sidebar */}
+      {!isFullyComplete && (
+        <div className="onboarding-hub-layout">
+          {/* LEFT: Current step card */}
+          <div className="card onboarding-hub-step-card">
+            <p className="step-eyebrow">
+              Step {journey.currentIndex + 1} of {ONBOARDING_STEPS.length}
             </p>
-          </div>
-
-          <ProgressRing percentage={percentage} label="Onboarding progress" size={76} />
-        </div>
-
-        {!isFullyComplete && (
-          <div
-            style={{
-              position: "relative",
-              marginTop: "1.5rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "1rem",
-              flexWrap: "wrap",
-              background: "rgba(255, 255, 255, 0.12)",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              borderRadius: "var(--radius-md)",
-              padding: "1rem 1.25rem",
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                  color: "rgba(255,255,255,0.75)",
-                }}
-              >
-                {panel.eyebrow}
-              </p>
-              <p style={{ fontSize: "1.0625rem", fontWeight: 700, color: "#fff", marginTop: "0.125rem" }}>
-                {panel.title}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9375rem", marginTop: "0.125rem" }}>
-                {panel.description}
-              </p>
+            <h2 className="onboarding-hub-step-title">{panel.title}</h2>
+            <p className="onboarding-hub-step-description">{panel.description}</p>
+            <div style={{ marginTop: "1.75rem" }}>
+              <Link href={panel.ctaHref} className="btn-primary">
+                {panel.ctaLabel}
+              </Link>
             </div>
-            <Link href={panel.ctaHref} className="btn-primary hero-cta" style={{ flexShrink: 0 }}>
-              {panel.ctaLabel}
-            </Link>
           </div>
-        )}
-      </section>
 
+          {/* RIGHT: Progress sidebar */}
+          <div className="card onboarding-hub-progress">
+            <div className="onboarding-hub-progress-header">
+              <div>
+                <h2 className="onboarding-hub-progress-title">Your progress</h2>
+                <p className="onboarding-hub-progress-count">
+                  {percentage}% profile complete
+                </p>
+                <p className="onboarding-hub-progress-count" style={{ marginTop: "0.125rem" }}>
+                  {completedCount} of {ONBOARDING_STEPS.length} sections completed
+                </p>
+              </div>
+              <ProgressRing percentage={percentage} label="Onboarding progress" size={60} />
+            </div>
+            <ol className="onboarding-rail-steps" aria-label="Onboarding steps">
+              {journey.steps.map((step) => (
+                <li key={step.path} className="onboarding-hub-step-list-item" data-state={step.state}>
+                  <Link href={step.path} className="onboarding-hub-step-link">
+                    <span className="onboarding-rail-step-marker" aria-hidden="true">
+                      {step.state === "complete" ? "✓" : ""}
+                    </span>
+                    <div className="onboarding-rail-step-text">
+                      <span className="onboarding-rail-step-label">{step.label}</span>
+                      <span className="onboarding-rail-step-caption">
+                        {step.state === "complete"
+                          ? "Completed"
+                          : step.state === "current"
+                            ? "Your next step"
+                            : "Up next"}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Post-completion recommendation (complete candidates only) */}
       {recommendation && (
         <section aria-labelledby="recommended-next-step-heading">
           <div className="page-section-header" style={{ marginBottom: "0.75rem" }}>
@@ -146,10 +147,7 @@ export default async function OnboardingOverviewPage() {
               Recommended next step
             </h2>
           </div>
-          <div
-            className="callout"
-            style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}
-          >
+          <div className="callout" style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
             <span
               aria-hidden="true"
               style={{
@@ -182,45 +180,79 @@ export default async function OnboardingOverviewPage() {
         </section>
       )}
 
-      <section aria-labelledby="onboarding-journey-heading">
-        <div className="page-section-header" style={{ marginBottom: "0.75rem" }}>
-          <h2 id="onboarding-journey-heading" className="page-section-title">
-            Profile setup
+      {/* Career Assets */}
+      <section aria-labelledby="career-assets-heading">
+        <div className="page-section-header" style={{ marginBottom: "0.25rem" }}>
+          <h2 id="career-assets-heading" className="page-section-title">
+            Career Assets
           </h2>
-          <span className="page-section-hint">
-            {remaining === 0 ? "All steps complete" : `${remaining} step${remaining === 1 ? "" : "s"} remaining`}
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-muted)",
+              border: "1px solid var(--color-border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              padding: "0.125rem 0.5rem",
+            }}
+          >
+            Optional
           </span>
         </div>
-        <OnboardingJourney steps={journey.steps} />
-      </section>
+        <p className="page-section-hint" style={{ marginBottom: "1rem" }}>
+          Add these when you&apos;re ready. They help you get more value from Launchpad.
+        </p>
+        <div className="onboarding-hub-assets-grid">
+          {/* Resume Centre */}
+          <div className="card onboarding-hub-asset-card">
+            <div className="onboarding-hub-asset-body">
+              <span className="onboarding-hub-asset-icon" aria-hidden="true">
+                <ResumeIcon />
+              </span>
+              <div>
+                <h3 className="onboarding-hub-asset-title">Resume Centre</h3>
+                <p className="onboarding-hub-asset-description">
+                  Upload your resume and get professional feedback to improve it.
+                </p>
+              </div>
+            </div>
+            <div className="onboarding-hub-asset-actions">
+              <Link href="/app/resume" className="btn-primary btn-sm">
+                Go to Resume Centre
+              </Link>
+              <button type="button" className="btn-sm" disabled>
+                Add later
+              </button>
+            </div>
+          </div>
 
-      <section aria-labelledby="onboarding-explore-heading">
-        <div className="page-section-header" style={{ marginBottom: "0.75rem" }}>
-          <h2 id="onboarding-explore-heading" className="page-section-title">
-            Explore Launchpad
-          </h2>
-          <span className="page-section-hint">Resume, LinkedIn, and interview prep -- ready whenever you are</span>
+          {/* LinkedIn Centre */}
+          <div className="card onboarding-hub-asset-card">
+            <div className="onboarding-hub-asset-body">
+              <span className="onboarding-hub-asset-icon" aria-hidden="true">
+                <LinkedInIcon />
+              </span>
+              <div>
+                <h3 className="onboarding-hub-asset-title">LinkedIn Centre</h3>
+                <p className="onboarding-hub-asset-description">
+                  Add your LinkedIn profile and get a profile review.
+                </p>
+              </div>
+            </div>
+            <div className="onboarding-hub-asset-actions">
+              <Link href="/app/linkedin" className="btn-primary btn-sm">
+                Go to LinkedIn Centre
+              </Link>
+              <button type="button" className="btn-sm" disabled>
+                Add later
+              </button>
+            </div>
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-          <ModuleSummaryCard
-            href="/app/resume"
-            icon={ResumeIcon}
-            title="Resume Centre"
-            status="Upload your resume and get expert feedback"
-          />
-          <ModuleSummaryCard
-            href="/app/linkedin"
-            icon={LinkedInIcon}
-            title="LinkedIn Centre"
-            status="Get your LinkedIn profile reviewed"
-          />
-          <ModuleSummaryCard
-            href="/app/mock-interviews"
-            icon={InterviewIcon}
-            title="Mock Interviews"
-            status="Book a practice interview with feedback"
-          />
-        </div>
+
         {isFullyComplete && (
           <div style={{ marginTop: "1rem" }}>
             <Link href="/app" style={{ fontWeight: 600 }}>
@@ -229,6 +261,21 @@ export default async function OnboardingOverviewPage() {
           </div>
         )}
       </section>
+
+      {/* Footer */}
+      <p
+        style={{
+          textAlign: "center",
+          fontSize: "0.8125rem",
+          color: "var(--color-text-muted)",
+          marginTop: "0.5rem",
+        }}
+      >
+        <span aria-hidden="true" style={{ marginRight: "0.375rem" }}>
+          ✦
+        </span>
+        You can update your profile anytime from your dashboard.
+      </p>
     </div>
   );
 }

@@ -90,6 +90,7 @@ describe("OnboardingOverviewPage", () => {
       "href",
       "/onboarding/about",
     );
+    expect(screen.queryByRole("link", { name: /back to dashboard/i })).not.toBeInTheDocument();
   });
 
   it("highlights the first incomplete step as current when progress is partial", async () => {
@@ -201,6 +202,7 @@ describe("OnboardingOverviewPage", () => {
     render(await OnboardingOverviewPage());
 
     expect(screen.getByText("Your profile is complete 🎉")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /back to dashboard/i })).toHaveAttribute("href", "/app");
   });
 
   it("recommends uploading a resume when no resume exists", async () => {

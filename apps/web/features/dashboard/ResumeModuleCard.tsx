@@ -19,7 +19,7 @@ export function ResumeModuleCard({ status }: ResumeModuleCardProps) {
     <ModuleSummaryCard
       href="/app/resume"
       icon={ResumeIcon}
-      title="Resume"
+      title="Resume Centre"
       status={status ? STATUS_LABELS[status] : "Not uploaded yet"}
     />
   );

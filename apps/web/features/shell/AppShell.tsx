@@ -12,7 +12,12 @@ import {
   useNotificationCount,
 } from "@/features/notifications/NotificationCountContext";
 
-export function AppShell(props: { email: string | null; roles: string[]; children: ReactNode }) {
+export function AppShell(props: {
+  email: string | null;
+  roles: string[];
+  isProfileComplete: boolean;
+  children: ReactNode;
+}) {
   return (
     <NotificationCountProvider>
       <AppShellContent {...props} />
@@ -23,10 +28,12 @@ export function AppShell(props: { email: string | null; roles: string[]; childre
 function AppShellContent({
   email,
   roles,
+  isProfileComplete,
   children,
 }: {
   email: string | null;
   roles: string[];
+  isProfileComplete: boolean;
   children: ReactNode;
 }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -76,13 +83,13 @@ function AppShellContent({
             >
               <CloseIcon aria-hidden />
             </button>
-            <Sidebar email={email} roles={roles} unreadCount={unreadCount} />
+            <Sidebar email={email} roles={roles} unreadCount={unreadCount} isProfileComplete={isProfileComplete} />
           </div>
         </>
       )}
 
       <aside className="app-shell-sidebar" aria-label="Sidebar">
-        <Sidebar email={email} roles={roles} unreadCount={unreadCount} />
+        <Sidebar email={email} roles={roles} unreadCount={unreadCount} isProfileComplete={isProfileComplete} />
       </aside>
 
       <div className="app-shell-content">

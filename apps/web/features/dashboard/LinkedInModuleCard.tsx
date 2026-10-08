@@ -21,7 +21,7 @@ export function LinkedInModuleCard({ hasProfile, reviewStatus }: LinkedInModuleC
     <ModuleSummaryCard
       href="/app/linkedin"
       icon={LinkedInIcon}
-      title="LinkedIn"
+      title="LinkedIn Centre"
       status={label(hasProfile, reviewStatus)}
     />
   );

@@ -10,7 +10,6 @@ const {
   getServerLinkedInReview,
   getServerCredits,
   getServerMockInterviews,
-  getServerEvents,
 } = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT:${path}`);
@@ -22,7 +21,6 @@ const {
   getServerLinkedInReview: vi.fn(),
   getServerCredits: vi.fn(),
   getServerMockInterviews: vi.fn(),
-  getServerEvents: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ redirect, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/session", () => ({ getAccessToken }));
@@ -30,7 +28,6 @@ vi.mock("@/lib/candidate/backend", () => ({ getServerDashboard }));
 vi.mock("@/lib/resume/backend", () => ({ getServerResumes }));
 vi.mock("@/lib/linkedin/backend", () => ({ getServerLinkedInProfile, getServerLinkedInReview }));
 vi.mock("@/lib/mock-interviews/backend", () => ({ getServerCredits, getServerMockInterviews }));
-vi.mock("@/lib/events/backend", () => ({ getServerEvents }));
 
 import CandidateDashboardPage from "./page";
 
@@ -48,7 +45,6 @@ afterEach(() => {
   getServerLinkedInReview.mockReset();
   getServerCredits.mockReset();
   getServerMockInterviews.mockReset();
-  getServerEvents.mockReset();
 });
 
 const SAMPLE_DASHBOARD = {
@@ -95,7 +91,8 @@ describe("CandidateDashboardPage", () => {
 
     render(await CandidateDashboardPage());
 
-    expect(screen.getByText(/Welcome back, Dana/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/, Dana! /);
+    expect(screen.getByText("Let's keep building your career with Launchpad.")).toBeInTheDocument();
   });
 
   it("renders the completion percentage from the backend", async () => {
@@ -125,20 +122,20 @@ describe("CandidateDashboardPage", () => {
     expect(skillsLink.parentElement).toHaveTextContent("Incomplete");
   });
 
-  it("renders the next action and lets the candidate navigate to it", async () => {
+  it("renders the recommended next step and lets the candidate navigate to it", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
 
     render(await CandidateDashboardPage());
 
     expect(screen.getByText("Add your skills")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /go now/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /continue now/i })).toHaveAttribute(
       "href",
       "/onboarding/skills",
     );
   });
 
-  it("shows the completion celebration when the profile is fully complete", async () => {
+  it("shows the completion celebration and hides the recommended-next-step card when the profile is fully complete", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue({
       ...SAMPLE_DASHBOARD,
@@ -164,7 +161,8 @@ describe("CandidateDashboardPage", () => {
     render(await CandidateDashboardPage());
 
     expect(screen.getByText(/profile is complete/)).toBeInTheDocument();
-    expect(screen.queryByText("Complete Profile →")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /recommended next step/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /continue to next step/i })).not.toBeInTheDocument();
   });
 
   it("shows every still-unimplemented module as a non-functional placeholder", async () => {
@@ -172,7 +170,6 @@ describe("CandidateDashboardPage", () => {
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
     getServerResumes.mockResolvedValue([]);
     getServerLinkedInProfile.mockResolvedValue(null);
-    getServerEvents.mockResolvedValue([]);
 
     render(await CandidateDashboardPage());
 
@@ -180,49 +177,29 @@ describe("CandidateDashboardPage", () => {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
     expect(screen.getAllByText("Coming soon")).toHaveLength(2);
-    // Mock Interviews and Events are no longer placeholders -- they
-    // get real status cards (see the dedicated tests below), not
-    // "Coming soon".
+    // Mock Interviews is no longer a placeholder -- it gets a real
+    // status card (see the dedicated tests below), not "Coming soon".
     expect(screen.getByRole("heading", { name: "Mock Interviews" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Events & Webinars" })).toBeInTheDocument();
   });
 
-  it("shows the next upcoming event on the Events module card", async () => {
+  it("renders Quick Actions with exactly Resume, LinkedIn, and Mock Interviews -- no Events card", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
     getServerResumes.mockResolvedValue([]);
     getServerLinkedInProfile.mockResolvedValue(null);
-    getServerEvents.mockResolvedValue([
-      {
-        id: "evt-1",
-        title: "Breaking Into Product Engineering",
-        description: "desc",
-        event_type: "WEBINAR",
-        status: "PUBLISHED",
-        starts_at: "2026-11-20T18:00:00Z",
-        ends_at: "2026-11-20T19:00:00Z",
-        timezone: "IST",
-        location: null,
-        meeting_url: null,
-        is_registered: false,
-      },
-    ]);
 
     render(await CandidateDashboardPage());
 
-    expect(screen.getByText(/Next: Breaking Into Product Engineering/)).toBeInTheDocument();
-  });
-
-  it("shows no upcoming events when the candidate has none", async () => {
-    getAccessToken.mockResolvedValue("token");
-    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
-    getServerResumes.mockResolvedValue([]);
-    getServerLinkedInProfile.mockResolvedValue(null);
-    getServerEvents.mockResolvedValue([]);
-
-    render(await CandidateDashboardPage());
-
-    expect(screen.getByText("No upcoming events")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Quick Actions" })).toBeInTheDocument();
+    expect(screen.getByText("Get started with the key features of Launchpad.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /resume centre/i })).toHaveAttribute("href", "/app/resume");
+    expect(screen.getByRole("link", { name: /linkedin centre/i })).toHaveAttribute("href", "/app/linkedin");
+    expect(screen.getByRole("link", { name: /mock interviews/i })).toHaveAttribute(
+      "href",
+      "/app/mock-interviews",
+    );
+    expect(screen.queryByRole("link", { name: /events/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Events & Webinars" })).not.toBeInTheDocument();
   });
 
   it("shows the Mock Interview module's credit balance when no interview has ever happened", async () => {
