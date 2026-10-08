@@ -10,6 +10,11 @@ export function isAdminUser(user: Pick<UserPublic, "roles"> | null | undefined):
   return user.roles.some((role) => ADMIN_ROLES.includes(role));
 }
 
+export function isCandidateUser(user: Pick<UserPublic, "roles"> | null | undefined): boolean {
+  if (!user) return false;
+  return user.roles.includes("CANDIDATE");
+}
+
 /** Where a freshly authenticated user should land, based solely on
  * roles the backend returned for their own session -- never a
  * client-supplied or stored role. */

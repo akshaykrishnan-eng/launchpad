@@ -38,7 +38,7 @@ describe("GoalStep", () => {
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
-  it("saves and returns to the onboarding overview on completion", async () => {
+  it("saves and continues to the Resume career asset step on completion", async () => {
     getProfile.mockResolvedValue({ ok: true, data: { career_goal: null } });
     updateProfile.mockResolvedValue({ ok: true, data: {} });
     render(<GoalStep />);
@@ -49,7 +49,7 @@ describe("GoalStep", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /finish/i }));
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding/resume"));
   });
 
   it("pre-fills an existing career goal", async () => {

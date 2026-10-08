@@ -36,7 +36,7 @@ export default async function OnboardingOverviewPage() {
 
   if (!dashboard) {
     return (
-      <div className="page page-narrow">
+      <div className="page page-narrow onboarding-page">
         <h1 className="visually-hidden">Onboarding</h1>
         <OnboardingOverviewError />
       </div>
@@ -67,7 +67,7 @@ export default async function OnboardingOverviewPage() {
   }
 
   return (
-    <div className="page page-narrow">
+    <div className="page page-narrow onboarding-page">
       <div>
         <BackLink href="/app">Back to Dashboard</BackLink>
       </div>

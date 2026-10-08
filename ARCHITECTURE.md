@@ -324,3 +324,83 @@ hardcoding per-type navigation inside `NotificationList`; a type with
 no entry in that map stays purely informational (click = mark as
 read only), which is still true for every notification type except
 `EVENT_PUBLISHED`.
+
+---
+
+# 9. Guided First-Login Onboarding (Phase 15)
+
+```text
+Login
+    v
+Finished onboarding?  -- derived from the existing
+                          profile_completion/next_action dashboard
+                          data, not a stored "first login" flag
+    v no                          v yes
+/onboarding                       /app
+    v
+About -> Education -> Skills -> Work Experience ->
+Career Interests -> Career Goal   (profile completion, 6 components)
+    v
+Resume -> LinkedIn                (optional "Career Assets")
+    v
+Onboarding hub: completion state + recommended next step
+```
+
+**"Finished onboarding" has no persisted flag -- it's the same
+derived state the dashboard already computes.** The login route
+(`apps/web/app/api/auth/login/route.ts`) calls the same
+`getServerDashboard` the `/app` and `/onboarding` pages already call,
+and only overrides the plain-candidate `/app` destination with
+`/onboarding` when `next_action.type !== "PROFILE_COMPLETE"`. There is
+nothing to keep in sync and no separate flag that could drift from
+reality; a dashboard fetch failure falls back to the pre-existing
+`/app` destination rather than risking a redirect loop. Admins and
+other non-candidate roles are untouched -- see `isCandidateUser` in
+`apps/web/lib/auth/roles.ts`.
+
+**Profile completion (6 required components) and "Career Assets"
+(Resume, LinkedIn) are deliberately separate concepts, in both UX and
+code.** `ONBOARDING_STEPS` (`apps/web/features/onboarding/steps.ts`)
+lists only the six profile-completion steps -- About, Education,
+Skills, Work Experience, Career Interests, Career Goal -- which is
+what drives the step rail, the mobile stepper, and
+`buildOnboardingJourney`'s completion math. Resume and LinkedIn are
+separate routes (`/onboarding/resume`, `/onboarding/linkedin`) reached
+only by linear navigation after Career Goal; they are never added to
+`ONBOARDING_STEPS` and never factor into the completion percentage.
+This mirrors the backend's `profile_completion.py`, which has never
+counted Resume/LinkedIn and wasn't changed here.
+
+**Onboarding does not reimplement Resume Centre or LinkedIn Centre --
+it's a first-time entry point into them.** The Resume and LinkedIn
+onboarding steps call the exact same client functions and components
+as their respective Centres (`ResumeUpload`/`uploadResume`,
+`LinkedInUrlForm`/`saveLinkedInUrl`, `requestReview`/
+`requestLinkedInReview` + `CreditRequirement` for an explicit review
+request). Uploading/saving never touches credits; a credit is only
+ever debited by the pre-existing, unchanged
+`resume_review.py`/`linkedin_review.py` services, which the onboarding
+step's "Request Review" button calls exactly as the Centre's own
+button does. "Skip" / "I'll do this later" on these two steps simply
+navigates on without calling any API -- a skipped asset is picked up
+later by the dashboard's/onboarding hub's existing
+`buildPostOnboardingRecommendation` (Resume -> LinkedIn -> Mock
+Interview -> Dashboard), not by forcing the candidate back through
+onboarding on a later login.
+
+**Work Experience is a profile-completion component with no
+dedicated onboarding step before this phase** (it was `/app/profile`
+in `next_action.py`'s `WORK_EXPERIENCE` route). It now has one
+(`/onboarding/experience`), inserted between Skills and Career
+Interests, which reuses `features/profile/WorkExperienceSection` and
+`ExperienceForm` exactly as the profile page does -- a server-rendered
+page passes the fetched experience list down as a prop, and
+`ExperienceForm`'s pre-existing `router.refresh()` re-fetches it, the
+same mechanism the profile page already relied on. Because
+`ExperienceForm` renders its own `<form>`, `OnboardingStepShell` gained
+an optional `useForm={false}` mode (default `true`, every other step
+unchanged) so this step doesn't nest one `<form>` inside another.
+Continuing past this step never requires an entry to exist, matching
+the Skills step's existing permissiveness -- a candidate with no work
+experience can continue and simply remains below 100% completion,
+which the dashboard already surfaces honestly rather than silently.

@@ -118,7 +118,7 @@ describe("OnboardingOverviewPage", () => {
     expect(screen.getByRole("link", { name: /career goal.*up next/i })).toBeInTheDocument();
   });
 
-  it("does not point the CTA at work experience when an onboarding step is still next", async () => {
+  it("points the CTA at the Work Experience step when it's next", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(
       dashboard({
@@ -128,20 +128,20 @@ describe("OnboardingOverviewPage", () => {
           type: "WORK_EXPERIENCE",
           title: "Add your work experience",
           description: "Add any job, internship, or part-time role you've held.",
-          route: "/app/profile",
+          route: "/onboarding/experience",
         },
       }),
     );
 
     render(await OnboardingOverviewPage());
 
-    expect(screen.getByRole("link", { name: /continue to career interests/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /continue to work experience/i })).toHaveAttribute(
       "href",
-      "/onboarding/career",
+      "/onboarding/experience",
     );
   });
 
-  it("sends the candidate to their profile once all five onboarding steps are done but work experience remains", async () => {
+  it("is not yet fully complete when only work experience remains", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(
       dashboard({
@@ -157,16 +157,17 @@ describe("OnboardingOverviewPage", () => {
           type: "WORK_EXPERIENCE",
           title: "Add your work experience",
           description: "Add any job, internship, or part-time role you've held.",
-          route: "/app/profile",
+          route: "/onboarding/experience",
         },
       }),
     );
 
     render(await OnboardingOverviewPage());
 
-    expect(screen.getByRole("link", { name: /go to your profile/i })).toHaveAttribute(
+    expect(screen.queryByText("Your profile is complete 🎉")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /continue to work experience/i })).toHaveAttribute(
       "href",
-      "/app/profile",
+      "/onboarding/experience",
     );
   });
 
@@ -286,7 +287,14 @@ describe("OnboardingOverviewPage", () => {
     render(await OnboardingOverviewPage());
 
     const journey = within(screen.getByRole("list"));
-    for (const label of ["About You", "Education", "Skills", "Career Interests", "Career Goal"]) {
+    for (const label of [
+      "About You",
+      "Education",
+      "Skills",
+      "Work Experience",
+      "Career Interests",
+      "Career Goal",
+    ]) {
       expect(journey.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
   });

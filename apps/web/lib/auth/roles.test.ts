@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAdminUser, postLoginDestination } from "@/lib/auth/roles";
+import { isAdminUser, isCandidateUser, postLoginDestination } from "@/lib/auth/roles";
 
 describe("isAdminUser", () => {
   it("is false for null/undefined", () => {
@@ -22,6 +22,25 @@ describe("isAdminUser", () => {
 
   it("is true when ADMIN is combined with other roles", () => {
     expect(isAdminUser({ roles: ["CANDIDATE", "ADMIN"] })).toBe(true);
+  });
+});
+
+describe("isCandidateUser", () => {
+  it("is false for null/undefined", () => {
+    expect(isCandidateUser(null)).toBe(false);
+    expect(isCandidateUser(undefined)).toBe(false);
+  });
+
+  it("is true for a plain CANDIDATE", () => {
+    expect(isCandidateUser({ roles: ["CANDIDATE"] })).toBe(true);
+  });
+
+  it("is false for ADMIN", () => {
+    expect(isCandidateUser({ roles: ["ADMIN"] })).toBe(false);
+  });
+
+  it("is false for other non-admin roles like RECRUITER", () => {
+    expect(isCandidateUser({ roles: ["RECRUITER"] })).toBe(false);
   });
 });
 

@@ -76,6 +76,6 @@ describe("SkillsStep", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    expect(push).toHaveBeenCalledWith("/onboarding/career");
+    expect(push).toHaveBeenCalledWith("/onboarding/experience");
   });
 });

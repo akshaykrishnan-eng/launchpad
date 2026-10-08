@@ -2,6 +2,7 @@ export const ONBOARDING_STEPS = [
   { path: "/onboarding/about", label: "About You" },
   { path: "/onboarding/education", label: "Education" },
   { path: "/onboarding/skills", label: "Skills" },
+  { path: "/onboarding/experience", label: "Work Experience" },
   { path: "/onboarding/career", label: "Career Interests" },
   { path: "/onboarding/goal", label: "Career Goal" },
 ] as const;

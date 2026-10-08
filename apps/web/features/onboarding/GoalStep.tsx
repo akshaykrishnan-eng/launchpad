@@ -39,7 +39,10 @@ export function GoalStep() {
       setError(result.error);
       return;
     }
-    router.push("/onboarding");
+    // Career Goal is the last of the required profile steps -- next
+    // comes the two optional "Career Asset" steps (Resume, LinkedIn),
+    // not straight back to the onboarding hub.
+    router.push("/onboarding/resume");
   }
 
   if (isLoading) {

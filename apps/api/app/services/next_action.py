@@ -35,7 +35,7 @@ _PRIORITY: list[tuple[str, NextActionType, str, str, str]] = [
         NextActionType.WORK_EXPERIENCE,
         "Add your work experience",
         "Add any job, internship, or part-time role you've held.",
-        "/app/profile",
+        "/onboarding/experience",
     ),
     (
         "career_preferences",

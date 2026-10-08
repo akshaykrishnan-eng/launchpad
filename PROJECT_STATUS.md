@@ -1201,6 +1201,51 @@ Backend: 250/250 pytest passing (243 existing + 7 new) inside an isolated throwa
 
 ---
 
+# 19.8 Phase 15 — Guided First-Login Onboarding ✅
+
+## Flow
+
+```
+Login
+    ↓
+Candidate finished onboarding? (derived from the existing
+profile_completion/next_action dashboard data -- no new "first
+login" flag)
+    ↓ no                              ↓ yes
+/onboarding                           /app
+    ↓
+About -> Education -> Skills -> Work Experience ->
+Career Interests -> Career Goal  (the six required profile steps)
+    ↓
+Resume (optional "Career Asset")
+    ↓
+LinkedIn (optional "Career Asset")
+    ↓
+Onboarding hub: completion state + recommended next step
+(already existed from a prior phase, reused as-is)
+```
+
+## What changed
+
+- **Login routing** (`apps/web/app/api/auth/login/route.ts`): for a `CANDIDATE` role whose destination would otherwise be `/app`, the route now also calls `getServerDashboard` (the same call `/app` and `/onboarding` already make) and sends them to `/onboarding` instead when `next_action.type !== "PROFILE_COMPLETE"`. No new persisted "first login" flag -- "finished onboarding" is derived from the same profile-completion state the dashboard and onboarding hub already use, so there's nothing to get out of sync. A failed dashboard fetch falls back to the pre-existing `/app` destination (no redirect loop). Admins and other non-candidate roles are unaffected.
+- **Work Experience is now a guided onboarding step** (`/onboarding/experience`, `features/onboarding/ExperienceStep.tsx`), inserted between Skills and Career Interests. It was previously a required profile-completion component with no onboarding step at all (edited only from `/app/profile`) -- this closes that gap. It reuses `features/profile/WorkExperienceSection`/`ExperienceForm` exactly as the profile page does (server-rendered page passes `experience` down, `ExperienceForm`'s existing `router.refresh()` re-fetches it -- no changes to that component). Continue never blocks on having an entry, same permissiveness as Skills -- a candidate without work experience can continue and simply remains at <100% completion, which the dashboard already surfaces honestly.
+- **`OnboardingStepShell`** gained an optional `useForm` prop (default `true`, unchanged for every existing step) so a step whose content already renders its own `<form>` (Work Experience's reused `ExperienceForm`) doesn't nest `<form>` elements, which is invalid HTML.
+- **Resume and LinkedIn are now optional "Career Asset" steps** (`/onboarding/resume`, `/onboarding/linkedin`) after Career Goal, visually and architecturally separate from the six profile-completion steps -- they are not added to `ONBOARDING_STEPS`/the completion percentage. Each reuses the existing Resume Centre / LinkedIn Centre primitives directly: `ResumeUpload`/`uploadResume`, `LinkedInUrlForm`/`saveLinkedInUrl`, and the existing `requestReview`/`requestLinkedInReview` + `CreditRequirement` for an explicit, optional "Request Review" CTA once the asset exists. Skipping ("I'll do this later") just navigates on without calling any API. No new resume/LinkedIn/review backend code.
+- `GoalStep` (the last required step) now continues to `/onboarding/resume` instead of straight back to the onboarding hub.
+- `apps/api/app/services/next_action.py`: the `WORK_EXPERIENCE` action's `route` changed from `/app/profile` to `/onboarding/experience`, since that step now exists. This is the only backend code change in this phase.
+- The onboarding hub page, its journey/progress helpers (`buildOnboardingJourney`, `buildNextStepPanel`), and its post-completion recommendation (`buildPostOnboardingRecommendation`: Resume -> LinkedIn -> Mock Interview -> Dashboard) already existed from a prior phase and needed no changes -- `STEP_COMPONENT_KEYS` just gained the `experience` mapping.
+- **Browser-only QA pass found one genuine layout bug, fixed**: `/onboarding` (the pre-existing hub page) and the two new Career Asset step pages render as bare `.page.page-narrow` with no `AppShell` wrapper, and `.page` itself carries no side padding (only `/app/*` pages get that from `AppShell`'s `.app-shell-main`) -- so at narrow viewports their content touched the screen edges. Fixed with one additive CSS class, `.onboarding-page` (`apps/web/app/globals.css`), mirroring `.onboarding-content-center`'s existing side-padding values, applied to the three affected pages (including their loading/error states). No backend change, no dependency added.
+
+## Credit safety (unchanged, re-verified)
+
+Resume upload and LinkedIn save call only the existing upload/save endpoints -- neither touches credits. A review is only ever requested by an explicit click on the "Request Review" CTA, which calls the pre-existing `request_review`/`request_review` (LinkedIn) services -- same atomic lock-balance-debit-create-flush-commit logic, same `InsufficientCreditError`/`DuplicateActiveReviewError` behavior, unchanged.
+
+## Verified
+
+Backend: full pytest suite passing inside the Docker dev stack's Postgres (1 updated assertion for the `WORK_EXPERIENCE` route change), `ruff check .` clean. (The working tree at verification time also contained separate, not-yet-committed Phase 14 email-verification work with its own new test files; the exact combined suite total is therefore not a meaningful number for this commit alone and is omitted here on purpose.) Frontend: full Vitest suite passing (4 existing tests updated for the new step ordering/routes, 20 new tests added covering `ExperienceStep`, the new `/onboarding/experience` page, `ResumeAssetStep`, `LinkedInAssetStep`, `isCandidateUser`, and the new login-redirect branches), `tsc --noEmit` clean, `eslint` clean, `next build` clean (`/onboarding/experience`, `/onboarding/resume`, `/onboarding/linkedin` all present in the route manifest). Live verification: rebuilt and restarted both `api` and `web` Docker images; created a test candidate via the direct `/auth/register` endpoint and drove the real HTTP flow -- confirmed login redirects to `/onboarding` while incomplete, confirmed `next_action.route` points at `/onboarding/experience` once skills are done, added work experience and confirmed completion flips to 100% with `next_action.type === PROFILE_COMPLETE`, confirmed a subsequent login then redirects straight to `/app`. Uploaded a real resume and saved a LinkedIn URL and confirmed credit balances stayed at 0 both times; granted one LinkedIn Review credit, confirmed a review request with 0 credits returns 409, and confirmed requesting it with 1 credit succeeds and leaves the balance at exactly 0 afterward. Confirmed the onboarding hub's recommendation renders "Explore your Launchpad dashboard" once resume + LinkedIn exist and no mock-interview credit remains. Test data created during manual verification was deleted afterward. Browser/Playwright tooling was not available in this session -- the live verification above exercised every HTTP boundary the browser would exercise (including SSR HTML rendering of the onboarding hub), but no actual browser UI click-through or responsive-layout check was performed; this is reported explicitly rather than claimed.
+
+---
+
 # 20. Explicitly Deferred Features
 
 The following are NOT currently implemented:

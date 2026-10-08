@@ -50,7 +50,7 @@ def test_work_experience_is_next_action_when_only_experience_is_missing() -> Non
     action = determine_next_action(_breakdown(experience=False))
 
     assert action.type == NextActionType.WORK_EXPERIENCE
-    assert action.route == "/app/profile"
+    assert action.route == "/onboarding/experience"
 
 
 def test_career_preferences_is_next_action_when_only_preferences_is_missing() -> None:

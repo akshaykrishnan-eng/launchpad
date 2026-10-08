@@ -14,18 +14,21 @@ export type OnboardingJourney = {
   currentIndex: number;
 };
 
-/** Which profile-completion component each of the five onboarding
- * steps corresponds to. Work experience is deliberately excluded --
- * it's edited on the profile page, not as part of this guided flow. */
+/** Which profile-completion component each onboarding step corresponds
+ * to. Resume and LinkedIn are deliberately excluded -- they're
+ * optional "Career Assets" added later in the flow (see
+ * ResumeAssetStep/LinkedInAssetStep), not part of the profile
+ * completion percentage. */
 const STEP_COMPONENT_KEYS: Record<OnboardingStepPath, keyof ProfileCompletionComponents> = {
   "/onboarding/about": "personal_information",
   "/onboarding/education": "education",
   "/onboarding/skills": "skills",
+  "/onboarding/experience": "experience",
   "/onboarding/career": "career_preferences",
   "/onboarding/goal": "career_goal",
 };
 
-/** Builds the five-step journey purely from the backend's completion
+/** Builds the onboarding journey purely from the backend's completion
  * booleans -- no recalculated percentage, no invented state. The first
  * incomplete step (in onboarding order) is "current"; everything
  * before it is "complete", everything after is "upcoming". -1 means
@@ -59,9 +62,7 @@ export type NextStepPanel = {
 /** Picks the copy/CTA for the "what do I do next" panel. Reuses the
  * backend's own next-action text when it already describes the same
  * step this journey says is current; falls back to a short generic
- * line when the backend's next action is work experience (a field
- * this five-step flow doesn't cover) while an onboarding step is
- * still genuinely next. */
+ * line otherwise. */
 export function buildNextStepPanel(journey: OnboardingJourney, nextAction: NextAction): NextStepPanel {
   const { steps, currentIndex } = journey;
 

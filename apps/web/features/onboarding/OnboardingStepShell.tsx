@@ -17,6 +17,14 @@ type OnboardingStepShellProps = {
   isSubmitting: boolean;
   error: string | null;
   continueLabel?: string;
+  /** false for steps whose children already render their own <form>
+   * (e.g. Work Experience, which reuses features/profile's
+   * WorkExperienceSection/ExperienceForm as-is) -- nested <form>
+   * elements are invalid HTML and submit unpredictably, so those
+   * steps render a plain container and drive Continue off a click
+   * handler instead of form submission. Defaults to true, unchanged
+   * for every other existing step. */
+  useForm?: boolean;
 };
 
 export function OnboardingStepShell({
@@ -29,8 +37,35 @@ export function OnboardingStepShell({
   isSubmitting,
   error,
   continueLabel = "Continue",
+  useForm = true,
 }: OnboardingStepShellProps) {
   const { index, total } = stepNeighbors(path);
+
+  const body = (
+    <>
+      {children}
+
+      {error && (
+        <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+          {error}
+        </p>
+      )}
+
+      <div className="onboarding-step-actions">
+        <button type="button" className="btn-ghost" onClick={onBack} disabled={isSubmitting}>
+          ← Back
+        </button>
+        <button
+          type={useForm ? "submit" : "button"}
+          className="btn-primary"
+          disabled={isSubmitting}
+          onClick={useForm ? undefined : onContinue}
+        >
+          {isSubmitting ? "Saving..." : `${continueLabel} →`}
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="onboarding-shell">
@@ -55,30 +90,19 @@ export function OnboardingStepShell({
               <p className="onboarding-step-description">{description}</p>
             </header>
 
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                onContinue();
-              }}
-              className="onboarding-step-form"
-            >
-              {children}
-
-              {error && (
-                <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
-                  {error}
-                </p>
-              )}
-
-              <div className="onboarding-step-actions">
-                <button type="button" className="btn-ghost" onClick={onBack} disabled={isSubmitting}>
-                  ← Back
-                </button>
-                <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : `${continueLabel} →`}
-                </button>
-              </div>
-            </form>
+            {useForm ? (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onContinue();
+                }}
+                className="onboarding-step-form"
+              >
+                {body}
+              </form>
+            ) : (
+              <div className="onboarding-step-form">{body}</div>
+            )}
           </div>
         </div>
       </main>

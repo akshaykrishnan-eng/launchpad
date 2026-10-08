@@ -1826,6 +1826,24 @@ button.notification-row-unread:hover:not(:disabled) {
   color: var(--color-primary-hover);
 }
 
+/* Side padding for the /onboarding pages that render plain `.page`
+   content directly (the hub, and the two optional Career Asset
+   steps) instead of going through OnboardingStepShell -- unlike
+   AppShell-wrapped `/app/*` pages, nothing above these in the tree
+   supplies a side gutter, so without this their content touches the
+   viewport edges on narrow screens. Mirrors
+   .onboarding-content-center's own side padding so the whole
+   /onboarding flow feels consistent. */
+.onboarding-page {
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+@media (min-width: 900px) {
+  .onboarding-page {
+    padding: 2.5rem 3rem 4rem;
+  }
+}
+
 .onboarding-rail-footer {
   margin-top: auto;
   padding-top: 1.5rem;
