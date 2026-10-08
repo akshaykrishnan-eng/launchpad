@@ -44,28 +44,15 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("link", { name: /admin/i })).not.toBeInTheDocument();
   });
 
-  it("shows a normal Dashboard link when the candidate's profile is complete", () => {
-    render(<Sidebar email="done@example.com" roles={["CANDIDATE"]} isProfileComplete={true} />);
+  it("shows a normal Dashboard link for any candidate — no locked state", () => {
+    // The dashboard is now accessible to all authenticated candidates regardless
+    // of profile completeness; the dashboard page itself renders a
+    // ProfileCompletionBanner when setup is unfinished.
+    render(<Sidebar email="candidate@example.com" roles={["CANDIDATE"]} />);
 
     const link = screen.getByRole("link", { name: /^dashboard$/i });
     expect(link).toHaveAttribute("href", "/app");
     expect(link).not.toHaveAttribute("aria-disabled");
-  });
-
-  it("shows a locked Dashboard entry with 'complete setup' hint when profile is incomplete", () => {
-    render(<Sidebar email="new@example.com" roles={["CANDIDATE"]} isProfileComplete={false} />);
-
-    const locked = screen.getByRole("link", { name: /dashboard.*complete setup/i });
-    expect(locked).toHaveAttribute("href", "/app");
-    expect(locked).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Complete setup")).toBeInTheDocument();
-  });
-
-  it("defaults to a normal Dashboard link when isProfileComplete is not passed", () => {
-    render(<Sidebar email="default@example.com" roles={["CANDIDATE"]} />);
-
-    const link = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(link).toHaveAttribute("href", "/app");
-    expect(link).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByText("Complete setup")).not.toBeInTheDocument();
   });
 });

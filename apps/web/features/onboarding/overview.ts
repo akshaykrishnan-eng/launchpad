@@ -1,4 +1,4 @@
-import { ONBOARDING_STEPS, OnboardingStepPath } from "@/features/onboarding/steps";
+import { ONBOARDING_STEPS, type OnboardingStepPath } from "@/features/onboarding/steps";
 import type { NextAction, ProfileCompletionComponents } from "@/lib/candidate/types";
 
 type StepState = "complete" | "current" | "upcoming";
@@ -14,28 +14,21 @@ export type OnboardingJourney = {
   currentIndex: number;
 };
 
-/** Which profile-completion component each onboarding step corresponds
- * to. Resume and LinkedIn are deliberately excluded -- they're
- * optional "Career Assets" added later in the flow (see
- * ResumeAssetStep/LinkedInAssetStep), not part of the profile
- * completion percentage. */
-const STEP_COMPONENT_KEYS: Record<OnboardingStepPath, keyof ProfileCompletionComponents> = {
-  "/onboarding/about": "personal_information",
-  "/onboarding/education": "education",
-  "/onboarding/skills": "skills",
-  "/onboarding/experience": "experience",
-  "/onboarding/career": "career_preferences",
-  "/onboarding/goal": "career_goal",
-};
-
-/** Builds the onboarding journey purely from the backend's completion
- * booleans -- no recalculated percentage, no invented state. The first
- * incomplete step (in onboarding order) is "current"; everything
- * before it is "complete", everything after is "upcoming". -1 means
- * every onboarding step is already done. */
-export function buildOnboardingJourney(components: ProfileCompletionComponents): OnboardingJourney {
+/** Builds the onboarding journey using the backend's next_action as the
+ * authoritative source of "where the candidate is now".  Using
+ * next_action.route (rather than re-deriving from component booleans)
+ * means optional steps like Work Experience are handled consistently:
+ * if the backend has already moved past experience, the hub reflects
+ * that rather than re-flagging it as incomplete.
+ *
+ * currentIndex === -1 means every step is done (next_action.route
+ * points to a non-step path like "/app/profile"). */
+export function buildOnboardingJourney(
+  _components: ProfileCompletionComponents,
+  nextAction: NextAction,
+): OnboardingJourney {
   const currentIndex = ONBOARDING_STEPS.findIndex(
-    (step) => !components[STEP_COMPONENT_KEYS[step.path]],
+    (step) => step.path === nextAction.route,
   );
 
   const steps = ONBOARDING_STEPS.map((step, index) => ({
@@ -51,12 +44,53 @@ export function buildOnboardingJourney(components: ProfileCompletionComponents):
   return { steps, currentIndex };
 }
 
+export type BenefitRow = {
+  /** Key into the ICON_MAP in page.tsx so rendering stays in one place. */
+  icon: "profile" | "graduation" | "star" | "target" | "briefcase" | "building" | "rocket" | "sparkle" | "search";
+  heading: string;
+  description: string;
+};
+
 export type NextStepPanel = {
   eyebrow: string;
   title: string;
   description: string;
   ctaLabel: string;
   ctaHref: string;
+  benefits: BenefitRow[];
+};
+
+const STEP_BENEFITS: Record<OnboardingStepPath, BenefitRow[]> = {
+  "/onboarding/about": [
+    { icon: "profile", heading: "Build your Launchpad profile", description: "Help us understand who you are and where you're starting from." },
+    { icon: "sparkle", heading: "Keep your information current", description: "Your profile can be updated anytime." },
+    { icon: "rocket", heading: "Takes just a minute", description: "We'll have you set up quickly so you can explore Launchpad." },
+  ],
+  "/onboarding/education": [
+    { icon: "graduation", heading: "Add your degree details", description: "Include your college, degree and graduation year." },
+    { icon: "target", heading: "Help us match better opportunities", description: "We'll suggest jobs and resources based on your education." },
+    { icon: "sparkle", heading: "Takes just a minute", description: "You can always update your education details later." },
+  ],
+  "/onboarding/skills": [
+    { icon: "star", heading: "Highlight your strengths", description: "Showcase the skills you want employers to notice." },
+    { icon: "target", heading: "Improve opportunity matching", description: "Help Launchpad understand your technical and professional strengths." },
+    { icon: "sparkle", heading: "Keep your profile flexible", description: "You can update your skills anytime as you grow." },
+  ],
+  "/onboarding/experience": [
+    { icon: "briefcase", heading: "Show your experience", description: "Highlight the roles and responsibilities you've handled." },
+    { icon: "building", heading: "Strengthen your profile", description: "Help recruiters understand your career background." },
+    { icon: "rocket", heading: "Just getting started?", description: "You can continue without adding experience." },
+  ],
+  "/onboarding/career": [
+    { icon: "target", heading: "Tell us what you're looking for", description: "Choose the roles and industries that match your goals." },
+    { icon: "search", heading: "Improve opportunity matching", description: "Help us surface more relevant opportunities for you." },
+    { icon: "sparkle", heading: "Update anytime", description: "Your interests can evolve with your career." },
+  ],
+  "/onboarding/goal": [
+    { icon: "target", heading: "Define your direction", description: "Tell us where you want your career to go." },
+    { icon: "profile", heading: "Personalize your journey", description: "Help Launchpad recommend the most relevant next steps." },
+    { icon: "rocket", heading: "Keep moving forward", description: "You can update your goal as your plans evolve." },
+  ],
 };
 
 /** Picks the copy/CTA for the "what do I do next" panel. Reuses the
@@ -74,6 +108,7 @@ export function buildNextStepPanel(journey: OnboardingJourney, nextAction: NextA
       description: nextAction.description,
       ctaLabel: isFullyComplete ? "View your profile →" : "Go to your profile →",
       ctaHref: nextAction.route,
+      benefits: [],
     };
   }
 
@@ -81,13 +116,14 @@ export function buildNextStepPanel(journey: OnboardingJourney, nextAction: NextA
   const backendDescribesCurrentStep = nextAction.route === current.path;
 
   return {
-    eyebrow: "Next step",
+    eyebrow: `Step ${currentIndex + 1} of ${steps.length}`,
     title: backendDescribesCurrentStep ? nextAction.title : current.label,
     description: backendDescribesCurrentStep
       ? nextAction.description
       : `Continue building your profile with ${current.label}.`,
-    ctaLabel: `Continue to ${current.label} →`,
+    ctaLabel: currentIndex === steps.length - 1 ? "Finish your profile →" : `Continue to ${current.label} →`,
     ctaHref: current.path,
+    benefits: STEP_BENEFITS[current.path] ?? [],
   };
 }
 

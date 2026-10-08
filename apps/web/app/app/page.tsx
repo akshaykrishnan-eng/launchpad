@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -14,6 +15,31 @@ import { getAccessToken } from "@/lib/auth/session";
 import { getServerLinkedInProfile, getServerLinkedInReview } from "@/lib/linkedin/backend";
 import { getServerCredits, getServerMockInterviews } from "@/lib/mock-interviews/backend";
 import { getServerResumes } from "@/lib/resume/backend";
+
+function ProfileCompletionBanner({
+  percentage,
+  ctaHref,
+}: {
+  percentage: number;
+  ctaHref: string;
+}) {
+  return (
+    <div className="profile-completion-banner" role="region" aria-label="Profile completion">
+      <div className="profile-completion-banner-body">
+        <div className="profile-completion-banner-text">
+          <p className="profile-completion-banner-title">Finish setting up your profile</p>
+          <p className="profile-completion-banner-description">
+            Complete the remaining sections to unlock all Launchpad features.
+            <span className="profile-completion-banner-percentage">{percentage}% complete</span>
+          </p>
+        </div>
+        <Link href={ctaHref} className="btn-primary btn-sm profile-completion-banner-cta">
+          Continue setup →
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 // Modules still genuinely unimplemented. Each renders the same honest
 // "Coming soon" placeholder -- no fake data, no fake functionality --
@@ -70,6 +96,13 @@ export default async function CandidateDashboardPage() {
         title={`${timeOfDayGreeting()}${firstName ? `, ${firstName}` : ""}! 👋`}
         description="Let's keep building your career with Launchpad."
       />
+
+      {!isProfileComplete && (
+        <ProfileCompletionBanner
+          percentage={dashboard.profile_completion.percentage}
+          ctaHref={dashboard.next_action.route}
+        />
+      )}
 
       <DashboardHero
         percentage={dashboard.profile_completion.percentage}

@@ -2,13 +2,30 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BackLink } from "@/components/BackLink";
-import { DashboardIcon, InterviewIcon, LinkedInIcon, ResumeIcon } from "@/components/icons";
+import {
+  ArrowRightIcon,
+  BriefcaseIcon,
+  BuildingIcon,
+  DashboardIcon,
+  GraduationCapIcon,
+  InterviewIcon,
+  LinkedInIcon,
+  ProfileIcon,
+  ResumeIcon,
+  RocketIcon,
+  SearchIcon,
+  SparkleIcon,
+  StarIcon,
+  TargetIcon,
+} from "@/components/icons";
+import type { IconProps } from "@/components/icons";
 import { ProgressRing } from "@/components/ProgressRing";
 import { OnboardingOverviewError } from "@/features/onboarding/OnboardingOverviewError";
 import {
   buildNextStepPanel,
   buildOnboardingJourney,
   buildPostOnboardingRecommendation,
+  type BenefitRow,
   type PostOnboardingRecommendationType,
 } from "@/features/onboarding/overview";
 import { ONBOARDING_STEPS } from "@/features/onboarding/steps";
@@ -17,6 +34,20 @@ import { getAccessToken } from "@/lib/auth/session";
 import { getServerLinkedInProfile } from "@/lib/linkedin/backend";
 import { getServerCredits } from "@/lib/mock-interviews/backend";
 import { getServerResumes } from "@/lib/resume/backend";
+
+type IconName = BenefitRow["icon"];
+
+const BENEFIT_ICON_MAP: Record<IconName, (props: IconProps) => React.ReactElement> = {
+  profile: (p) => <ProfileIcon {...p} />,
+  graduation: (p) => <GraduationCapIcon {...p} />,
+  star: (p) => <StarIcon {...p} />,
+  target: (p) => <TargetIcon {...p} />,
+  briefcase: (p) => <BriefcaseIcon {...p} />,
+  building: (p) => <BuildingIcon {...p} />,
+  rocket: (p) => <RocketIcon {...p} />,
+  sparkle: (p) => <SparkleIcon {...p} />,
+  search: (p) => <SearchIcon {...p} />,
+};
 
 const RECOMMENDATION_ICONS: Record<PostOnboardingRecommendationType, typeof ResumeIcon> = {
   RESUME: ResumeIcon,
@@ -43,7 +74,7 @@ export default async function OnboardingOverviewPage() {
   }
 
   const { percentage, components } = dashboard.profile_completion;
-  const journey = buildOnboardingJourney(components);
+  const journey = buildOnboardingJourney(components, dashboard.next_action);
   const panel = buildNextStepPanel(journey, dashboard.next_action);
   const isFullyComplete = dashboard.next_action.type === "PROFILE_COMPLETE";
   const completedCount = journey.steps.filter((s) => s.state === "complete").length;
@@ -63,7 +94,11 @@ export default async function OnboardingOverviewPage() {
 
   return (
     <div className="page onboarding-page onboarding-hub-page">
-      {/* Back to Dashboard — only for candidates who have completed onboarding */}
+      {/* Back to Dashboard — only shown once onboarding is complete.
+          The onboarding hub is a guided flow: showing a back-link for
+          incomplete candidates disrupts the forward momentum, and the
+          dashboard already surfaces a "Continue setup" banner for anyone
+          who navigated there directly. */}
       {isFullyComplete && (
         <div>
           <BackLink href="/app">Back to Dashboard</BackLink>
@@ -71,7 +106,7 @@ export default async function OnboardingOverviewPage() {
       )}
 
       {/* Page header */}
-      <div>
+      <div className="onboarding-hub-page-header">
         <p className="step-eyebrow">Launchpad Onboarding</p>
         <h1 className="onboarding-hub-heading">
           {isFullyComplete ? "Your profile is complete 🎉" : "Let's build your Launchpad profile"}
@@ -88,38 +123,62 @@ export default async function OnboardingOverviewPage() {
         <div className="onboarding-hub-layout">
           {/* LEFT: Current step card */}
           <div className="card onboarding-hub-step-card">
-            <p className="step-eyebrow">
-              Step {journey.currentIndex + 1} of {ONBOARDING_STEPS.length}
-            </p>
+            <p className="step-eyebrow onboarding-hub-step-eyebrow">{panel.eyebrow}</p>
             <h2 className="onboarding-hub-step-title">{panel.title}</h2>
             <p className="onboarding-hub-step-description">{panel.description}</p>
-            <div style={{ marginTop: "1.75rem" }}>
+
+            {panel.benefits.length > 0 && (
+              <ul className="onboarding-benefit-rows" aria-label="Why this step matters">
+                {panel.benefits.map((benefit) => {
+                  const BenefitIcon = BENEFIT_ICON_MAP[benefit.icon];
+                  return (
+                    <li key={benefit.heading} className="onboarding-benefit-row">
+                      <span className="onboarding-benefit-icon" aria-hidden="true">
+                        <BenefitIcon />
+                      </span>
+                      <div className="onboarding-benefit-content">
+                        <span className="onboarding-benefit-heading">{benefit.heading}</span>
+                        <span className="onboarding-benefit-description">{benefit.description}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="onboarding-hub-step-cta">
               <Link href={panel.ctaHref} className="btn-primary">
                 {panel.ctaLabel}
+                <ArrowRightIcon aria-hidden style={{ width: "1rem", height: "1rem" }} />
               </Link>
             </div>
           </div>
 
-          {/* RIGHT: Progress sidebar */}
+          {/* RIGHT: Progress card */}
           <div className="card onboarding-hub-progress">
             <div className="onboarding-hub-progress-header">
               <div>
                 <h2 className="onboarding-hub-progress-title">Your progress</h2>
                 <p className="onboarding-hub-progress-count">
-                  {percentage}% profile complete
-                </p>
-                <p className="onboarding-hub-progress-count" style={{ marginTop: "0.125rem" }}>
-                  {completedCount} of {ONBOARDING_STEPS.length} sections completed
+                  {completedCount} of {ONBOARDING_STEPS.length} steps complete
                 </p>
               </div>
-              <ProgressRing percentage={percentage} label="Onboarding progress" size={60} />
+              <ProgressRing percentage={percentage} label="Onboarding progress" size={56} />
             </div>
-            <ol className="onboarding-rail-steps" aria-label="Onboarding steps">
-              {journey.steps.map((step) => (
-                <li key={step.path} className="onboarding-hub-step-list-item" data-state={step.state}>
-                  <Link href={step.path} className="onboarding-hub-step-link">
-                    <span className="onboarding-rail-step-marker" aria-hidden="true">
-                      {step.state === "complete" ? "✓" : ""}
+
+            <ol className="onboarding-hub-steps" aria-label="Onboarding steps">
+              {journey.steps.map((step, index) => (
+                <li key={step.path} className="onboarding-hub-step-item" data-state={step.state}>
+                  <div className="onboarding-hub-step-connector" aria-hidden="true" />
+                  <Link href={step.path} className="onboarding-hub-step-row">
+                    <span className="onboarding-hub-step-marker" aria-hidden="true">
+                      {step.state === "complete" ? (
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <span className="onboarding-hub-step-number">{index + 1}</span>
+                      )}
                     </span>
                     <div className="onboarding-rail-step-text">
                       <span className="onboarding-rail-step-label">{step.label}</span>
@@ -212,18 +271,22 @@ export default async function OnboardingOverviewPage() {
               <span className="onboarding-hub-asset-icon" aria-hidden="true">
                 <ResumeIcon />
               </span>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h3 className="onboarding-hub-asset-title">Resume Centre</h3>
                 <p className="onboarding-hub-asset-description">
                   Upload your resume and get professional feedback to improve it.
                 </p>
               </div>
+              <ArrowRightIcon
+                aria-hidden
+                style={{ color: "var(--color-text-muted)", flexShrink: 0, width: "1.125rem", height: "1.125rem" }}
+              />
             </div>
             <div className="onboarding-hub-asset-actions">
-              <Link href="/app/resume" className="btn-primary btn-sm">
-                Go to Resume Centre
+              <Link href="/app/resume" className="btn-outline btn-sm">
+                Add resume
               </Link>
-              <button type="button" className="btn-sm" disabled>
+              <button type="button" className="btn-ghost btn-sm" disabled>
                 Add later
               </button>
             </div>
@@ -235,18 +298,22 @@ export default async function OnboardingOverviewPage() {
               <span className="onboarding-hub-asset-icon" aria-hidden="true">
                 <LinkedInIcon />
               </span>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h3 className="onboarding-hub-asset-title">LinkedIn Centre</h3>
                 <p className="onboarding-hub-asset-description">
                   Add your LinkedIn profile and get a profile review.
                 </p>
               </div>
+              <ArrowRightIcon
+                aria-hidden
+                style={{ color: "var(--color-text-muted)", flexShrink: 0, width: "1.125rem", height: "1.125rem" }}
+              />
             </div>
             <div className="onboarding-hub-asset-actions">
-              <Link href="/app/linkedin" className="btn-primary btn-sm">
-                Go to LinkedIn Centre
+              <Link href="/app/linkedin" className="btn-outline btn-sm">
+                Add LinkedIn
               </Link>
-              <button type="button" className="btn-sm" disabled>
+              <button type="button" className="btn-ghost btn-sm" disabled>
                 Add later
               </button>
             </div>
@@ -263,17 +330,8 @@ export default async function OnboardingOverviewPage() {
       </section>
 
       {/* Footer */}
-      <p
-        style={{
-          textAlign: "center",
-          fontSize: "0.8125rem",
-          color: "var(--color-text-muted)",
-          marginTop: "0.5rem",
-        }}
-      >
-        <span aria-hidden="true" style={{ marginRight: "0.375rem" }}>
-          ✦
-        </span>
+      <p className="onboarding-hub-footer-note">
+        <span aria-hidden="true" className="onboarding-hub-footer-icon">✦</span>
         You can update your profile anytime from your dashboard.
       </p>
     </div>

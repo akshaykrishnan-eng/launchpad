@@ -15,7 +15,6 @@ import {
 export function AppShell(props: {
   email: string | null;
   roles: string[];
-  isProfileComplete: boolean;
   children: ReactNode;
 }) {
   return (
@@ -28,12 +27,10 @@ export function AppShell(props: {
 function AppShellContent({
   email,
   roles,
-  isProfileComplete,
   children,
 }: {
   email: string | null;
   roles: string[];
-  isProfileComplete: boolean;
   children: ReactNode;
 }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -83,13 +80,13 @@ function AppShellContent({
             >
               <CloseIcon aria-hidden />
             </button>
-            <Sidebar email={email} roles={roles} unreadCount={unreadCount} isProfileComplete={isProfileComplete} />
+            <Sidebar email={email} roles={roles} unreadCount={unreadCount} />
           </div>
         </>
       )}
 
       <aside className="app-shell-sidebar" aria-label="Sidebar">
-        <Sidebar email={email} roles={roles} unreadCount={unreadCount} isProfileComplete={isProfileComplete} />
+        <Sidebar email={email} roles={roles} unreadCount={unreadCount} />
       </aside>
 
       <div className="app-shell-content">

@@ -2193,3 +2193,322 @@ button.notification-row-unread:hover:not(:disabled) {
     justify-content: center;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Outlined button variant -- blue border, transparent fill.
+   Used for the Career Assets CTAs where a secondary emphasis is right.
+   ------------------------------------------------------------------ */
+.btn-outline {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+a.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary-hover);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+a.btn-outline:hover {
+  background: var(--color-primary-subtle);
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------
+   Onboarding hub — step card benefit rows.
+   Three icon+text rows that give the left card natural height and
+   communicate the value of the current step.
+   ------------------------------------------------------------------ */
+.onboarding-hub-step-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  margin-bottom: 0.125rem;
+}
+
+.onboarding-hub-step-cta {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.onboarding-benefit-rows {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 1.75rem;
+}
+
+.onboarding-benefit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 0.875rem 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.onboarding-benefit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+
+.onboarding-benefit-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding-top: 0.125rem;
+}
+
+.onboarding-benefit-heading {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.onboarding-benefit-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------
+   Onboarding hub — progress card with vertical journey connector.
+   ------------------------------------------------------------------ */
+.onboarding-hub-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin-top: 1.25rem;
+}
+
+.onboarding-hub-step-item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Vertical connector sitting above each step (except the first) */
+.onboarding-hub-step-connector {
+  width: 2px;
+  height: 0.75rem;
+  margin-left: 1.5625rem; /* row left-padding (0.75rem) + half marker (0.875rem) - 1px (half line) */
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.onboarding-hub-step-item:first-child .onboarding-hub-step-connector {
+  display: none;
+}
+
+/* Connector above a "complete" item (previous was complete) */
+.onboarding-hub-step-item[data-state="complete"] .onboarding-hub-step-connector {
+  background: var(--color-success-text);
+}
+
+/* Connector above the "current" item (previous was complete → green transition) */
+.onboarding-hub-step-item[data-state="current"] .onboarding-hub-step-connector {
+  background: var(--color-success-text);
+}
+
+/* Connector above an "upcoming" item (previous was current → muted) */
+.onboarding-hub-step-item[data-state="upcoming"] .onboarding-hub-step-connector {
+  background: var(--color-border);
+}
+
+.onboarding-hub-step-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-md);
+  transition: background-color 0.12s ease;
+}
+
+.onboarding-hub-step-row:hover {
+  background: var(--color-surface-muted);
+}
+
+.onboarding-hub-step-item[data-state="current"] .onboarding-hub-step-row {
+  background: var(--color-primary-subtle);
+}
+
+.onboarding-hub-step-item[data-state="current"] .onboarding-hub-step-row:hover {
+  background: var(--color-primary-wash);
+}
+
+.onboarding-hub-step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  border: 1.5px solid var(--color-border);
+}
+
+.onboarding-hub-step-item[data-state="complete"] .onboarding-hub-step-marker {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-color: var(--color-success-bg);
+}
+
+.onboarding-hub-step-item[data-state="current"] .onboarding-hub-step-marker {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.onboarding-hub-step-number {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Override label/caption colors for new step items */
+.onboarding-hub-step-item[data-state="current"] .onboarding-rail-step-label {
+  color: var(--color-primary-hover);
+}
+
+.onboarding-hub-step-item[data-state="current"] .onboarding-rail-step-caption {
+  color: var(--color-primary);
+}
+
+.onboarding-hub-step-item[data-state="complete"] .onboarding-rail-step-label {
+  color: var(--color-text-primary);
+}
+
+.onboarding-hub-step-item[data-state="upcoming"] .onboarding-rail-step-label {
+  color: var(--color-text-muted);
+}
+
+/* Footer note */
+.onboarding-hub-footer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.onboarding-hub-footer-icon {
+  color: var(--color-primary);
+  font-size: 0.625rem;
+}
+
+/* Widen two-column on larger screens to give benefit rows more room */
+@media (min-width: 900px) {
+  .onboarding-hub-layout {
+    grid-template-columns: 1fr 288px;
+  }
+}
+
+/* Responsive: narrower progress sidebar on mid-range tablets */
+@media (min-width: 768px) and (max-width: 899px) {
+  .onboarding-hub-layout {
+    grid-template-columns: 1fr 256px;
+  }
+}
+
+/* Mobile benefit rows */
+@media (max-width: 480px) {
+  .onboarding-benefit-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+/* ── Profile completion banner (dashboard) ───────────────────────────── */
+.profile-completion-banner {
+  background: var(--color-primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.profile-completion-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-completion-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-completion-banner-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 0.125rem;
+}
+
+.profile-completion-banner-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-completion-banner-percentage {
+  font-weight: 600;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.profile-completion-banner-cta {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .profile-completion-banner-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

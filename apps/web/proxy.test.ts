@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth/cookies";
 
-const { refreshTokens } = vi.hoisted(() => ({ refreshTokens: vi.fn() }));
+const { refreshTokens } = vi.hoisted(() => ({
+  refreshTokens: vi.fn(),
+}));
 vi.mock("@/lib/auth/backend", () => ({ refreshTokens }));
 
 import { proxy } from "./proxy";
@@ -18,9 +20,9 @@ function makeAccessToken(expSeconds: number): string {
   return `${header}.${payload}.fake-signature`;
 }
 
-function makeRequest(cookieHeader: string): NextRequest {
+function makeRequest(cookieHeader: string, path = "/admin"): NextRequest {
   return new NextRequest(
-    new Request("http://localhost:3000/admin", { headers: cookieHeader ? { cookie: cookieHeader } : {} }),
+    new Request(`http://localhost:3000${path}`, { headers: cookieHeader ? { cookie: cookieHeader } : {} }),
   );
 }
 
@@ -88,5 +90,84 @@ describe("proxy", () => {
     expect(refreshTokens).not.toHaveBeenCalled();
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/login");
+  });
+
+  describe("authenticated access to /app — no onboarding gate", () => {
+    // The proxy no longer redirects candidates based on profile completeness.
+    // All authenticated candidates (complete or incomplete) can reach /app.
+    // The dashboard page itself renders a ProfileCompletionBanner when
+    // next_action.type !== "PROFILE_COMPLETE", keeping them aware without
+    // blocking access.
+
+    it("lets an incomplete candidate reach /app without redirecting", async () => {
+      const token = makeAccessToken(Math.floor(Date.now() / 1000) + 600);
+      const request = makeRequest(`${ACCESS_TOKEN_COOKIE}=${token}`, "/app");
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBeNull();
+    });
+
+    it("lets a profile-complete candidate reach /app", async () => {
+      const token = makeAccessToken(Math.floor(Date.now() / 1000) + 600);
+      const request = makeRequest(`${ACCESS_TOKEN_COOKIE}=${token}`, "/app");
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBeNull();
+    });
+
+    it("lets any authenticated role reach /app with no extra backend calls", async () => {
+      const token = makeAccessToken(Math.floor(Date.now() / 1000) + 600);
+      const request = makeRequest(`${ACCESS_TOKEN_COOKIE}=${token}`, "/app");
+
+      const response = await proxy(request);
+
+      // No user or dashboard lookup needed -- the proxy just checks auth.
+      expect(refreshTokens).not.toHaveBeenCalled();
+      expect(response.headers.get("location")).toBeNull();
+    });
+
+    it("does not redirect subroutes like /app/resume", async () => {
+      const token = makeAccessToken(Math.floor(Date.now() / 1000) + 600);
+      const request = makeRequest(`${ACCESS_TOKEN_COOKIE}=${token}`, "/app/resume");
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBeNull();
+    });
+
+    it("does not redirect other matcher paths such as /onboarding", async () => {
+      const token = makeAccessToken(Math.floor(Date.now() / 1000) + 600);
+      const request = makeRequest(`${ACCESS_TOKEN_COOKIE}=${token}`, "/onboarding");
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBeNull();
+    });
+
+    it("preserves refreshed cookies when a token refresh occurs on /app", async () => {
+      const expiredToken = makeAccessToken(Math.floor(Date.now() / 1000) - 60);
+      refreshTokens.mockResolvedValue({
+        ok: true,
+        status: 200,
+        data: {
+          access_token: "new-access-token",
+          refresh_token: "new-refresh-token",
+          token_type: "bearer",
+          expires_in: 900,
+        },
+      });
+      const request = makeRequest(
+        `${ACCESS_TOKEN_COOKIE}=${expiredToken}; ${REFRESH_TOKEN_COOKIE}=valid-refresh-token`,
+        "/app",
+      );
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.cookies.get(ACCESS_TOKEN_COOKIE)?.value).toBe("new-access-token");
+      expect(response.cookies.get(REFRESH_TOKEN_COOKIE)?.value).toBe("new-refresh-token");
+    });
   });
 });

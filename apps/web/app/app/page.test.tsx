@@ -135,6 +135,48 @@ describe("CandidateDashboardPage", () => {
     );
   });
 
+  it("shows a profile completion banner with the correct CTA when the profile is incomplete", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(SAMPLE_DASHBOARD);
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.getByText("Finish setting up your profile")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /continue setup/i }),
+    ).toHaveAttribute("href", "/onboarding/skills");
+    expect(screen.getByText(/40% complete/)).toBeInTheDocument();
+  });
+
+  it("does not show the completion banner when the profile is complete", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue({
+      ...SAMPLE_DASHBOARD,
+      profile_completion: {
+        percentage: 100,
+        components: {
+          personal_information: true,
+          education: true,
+          skills: true,
+          experience: true,
+          career_preferences: true,
+          career_goal: true,
+        },
+      },
+      next_action: {
+        type: "PROFILE_COMPLETE",
+        title: "Your profile is complete \u{1F389}",
+        description: "Nice work.",
+        route: "/app/profile",
+      },
+    });
+
+    render(await CandidateDashboardPage());
+
+    expect(screen.queryByText("Finish setting up your profile")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /continue setup/i })).not.toBeInTheDocument();
+  });
+
   it("shows the completion celebration and hides the recommended-next-step card when the profile is fully complete", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue({

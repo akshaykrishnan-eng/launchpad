@@ -20,34 +20,40 @@ import { isAccessTokenExpired } from "@/lib/auth/jwt";
  */
 export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (accessToken && !isAccessTokenExpired(accessToken)) {
-    return NextResponse.next();
-  }
+  let refreshedTokens: { access_token: string; refresh_token: string; expires_in: number } | null = null;
 
-  const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
-  if (!refreshToken) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+  if (!accessToken || isAccessTokenExpired(accessToken)) {
+    const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
+    if (!refreshToken) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
 
-  const result = await refreshTokens(refreshToken);
-  if (!result.ok) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete(ACCESS_TOKEN_COOKIE);
-    response.cookies.delete(REFRESH_TOKEN_COOKIE);
-    return response;
+    const result = await refreshTokens(refreshToken);
+    if (!result.ok) {
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.delete(ACCESS_TOKEN_COOKIE);
+      response.cookies.delete(REFRESH_TOKEN_COOKIE);
+      return response;
+    }
+
+    refreshedTokens = result.data;
   }
 
   const response = NextResponse.next();
-  response.cookies.set(
-    ACCESS_TOKEN_COOKIE,
-    result.data.access_token,
-    accessTokenCookieOptions(result.data.expires_in),
-  );
-  response.cookies.set(
-    REFRESH_TOKEN_COOKIE,
-    result.data.refresh_token,
-    refreshTokenCookieOptions(60 * 60 * 24 * 30),
-  );
+
+  if (refreshedTokens) {
+    response.cookies.set(
+      ACCESS_TOKEN_COOKIE,
+      refreshedTokens.access_token,
+      accessTokenCookieOptions(refreshedTokens.expires_in),
+    );
+    response.cookies.set(
+      REFRESH_TOKEN_COOKIE,
+      refreshedTokens.refresh_token,
+      refreshTokenCookieOptions(60 * 60 * 24 * 30),
+    );
+  }
+
   return response;
 }
 

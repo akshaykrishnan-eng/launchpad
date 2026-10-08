@@ -7,53 +7,15 @@ import { NavLink } from "@/features/shell/NavLink";
 import {
   ADMIN_LINK_ITEM,
   CAREER_TOOLS_NAV_ITEMS,
-  type NavItem,
   NOTIFICATIONS_NAV_HREF,
   OVERVIEW_NAV_ITEMS,
 } from "@/features/shell/navigation";
 import { isAdminUser } from "@/lib/auth/roles";
 
-/** Dashboard nav entry shown to candidates who have not yet completed
- * the six core onboarding steps.  It looks disabled so they can see
- * it is not yet a reachable destination, while still letting the proxy
- * gate handle the actual redirect if they click it. */
-function LockedDashboardItem({ icon: Icon }: { icon: NavItem["icon"] }) {
-  return (
-    <Link
-      href="/app"
-      aria-disabled="true"
-      aria-label="Dashboard — complete setup to unlock"
-      className="sidebar-nav-link"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.75rem",
-        padding: "0.5rem 0.75rem 0.5rem 1rem",
-        borderRadius: "var(--radius-md)",
-        fontSize: "0.9375rem",
-        fontWeight: 500,
-        color: "var(--color-text-muted)",
-        opacity: 0.65,
-        cursor: "default",
-      }}
-      tabIndex={-1}
-    >
-      <Icon aria-hidden style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.0625rem" }}>
-        <span>Dashboard</span>
-        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 400 }}>
-          Complete setup
-        </span>
-      </span>
-    </Link>
-  );
-}
-
 export function Sidebar({
   email,
   roles,
   unreadCount,
-  isProfileComplete = true,
 }: {
   email: string | null;
   roles: string[];
@@ -61,11 +23,6 @@ export function Sidebar({
    * NotificationBadge's `unreadCount` prop. Undefined (not passed)
    * falls back to NotificationBadge fetching its own count. */
   unreadCount?: number | null;
-  /** When false the Dashboard nav entry is rendered as locked so an
-   * incomplete candidate sees a clear signal rather than a normal
-   * active destination (the proxy blocks /app itself; this is the
-   * sidebar affordance for the /app/* sub-routes that remain open). */
-  isProfileComplete?: boolean;
 }) {
   const isAdmin = isAdminUser({ roles });
   const initial = email ? email.trim()[0]?.toUpperCase() : "?";
@@ -108,13 +65,9 @@ export function Sidebar({
 
       <nav aria-label="Main navigation" style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          {OVERVIEW_NAV_ITEMS.map((item) =>
-            item.href === "/app" && !isProfileComplete ? (
-              <LockedDashboardItem key={item.href} icon={item.icon} />
-            ) : (
-              <NavLink key={item.href} {...item} />
-            ),
-          )}
+          {OVERVIEW_NAV_ITEMS.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
         </div>
 
         <p className="nav-group-label">Career tools</p>
