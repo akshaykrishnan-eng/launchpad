@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -11,10 +12,12 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showVerifyLink, setShowVerifyLink] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setShowVerifyLink(false);
     setIsSubmitting(true);
 
     const result = await login(email, password);
@@ -22,6 +25,9 @@ export function LoginForm() {
 
     if (!result.ok) {
       setError(result.error);
+      if ("emailNotVerified" in result && result.emailNotVerified) {
+        setShowVerifyLink(true);
+      }
       return;
     }
 
@@ -54,9 +60,16 @@ export function LoginForm() {
         />
       </label>
       {error && (
-        <p role="alert" style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
-          {error}
-        </p>
+        <div role="alert">
+          <p style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>{error}</p>
+          {showVerifyLink && (
+            <p style={{ fontSize: "0.875rem", marginTop: "0.375rem" }}>
+              <Link href="/register" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+                Verify your email →
+              </Link>
+            </p>
+          )}
+        </div>
       )}
       <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: "100%" }}>
         {isSubmitting ? "Signing in..." : "Sign in"}

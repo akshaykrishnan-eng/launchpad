@@ -12,6 +12,7 @@ from app.models.linkedin_review_request import LinkedInReviewRequest
 from app.models.linkedin_review_result import LinkedInReviewResult
 from app.models.mock_interview import MockInterview
 from app.models.notification import Notification
+from app.models.pending_registration import PendingRegistration
 from app.models.refresh_token import RefreshToken
 from app.models.resume import Resume
 from app.models.review_request import ReviewRequest
@@ -37,6 +38,7 @@ __all__ = [
     "LinkedInReviewResult",
     "MockInterview",
     "Notification",
+    "PendingRegistration",
     "RefreshToken",
     "Resume",
     "ReviewRequest",

@@ -168,3 +168,78 @@ export function ChevronDownIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function GraduationCapIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M22 10L12 4 2 10l10 6 10-6z" />
+      <path d="M7 13.5v5c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-5" />
+      <path d="M22 10v5" />
+    </svg>
+  );
+}
+
+export function StarIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  );
+}
+
+export function TargetIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function BriefcaseIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="2" y="8.5" width="20" height="12" rx="2" />
+      <path d="M16 8.5V7a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1.5" />
+      <path d="M2 13h20" />
+    </svg>
+  );
+}
+
+export function BuildingIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="2" width="18" height="20" rx="1.5" />
+      <path d="M9 7h1.5M13.5 7H15M9 11h1.5M13.5 11H15M9 15h1.5M13.5 15H15" />
+      <path d="M9.5 22v-4h5v4" />
+    </svg>
+  );
+}
+
+export function RocketIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 2c0 0-5 4-5 10v1l-2 3h14l-2-3v-1c0-6-5-10-5-10z" />
+      <path d="M10 21a2 2 0 0 0 4 0" />
+      <path d="M7 13h10" />
+    </svg>
+  );
+}
+
+export function SparkleIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+      <path d="M5.636 5.636l2.121 2.121M16.243 16.243l2.121 2.121M5.636 18.364l2.121-2.121M16.243 7.757l2.121-2.121" />
+    </svg>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}

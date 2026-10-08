@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
@@ -7,6 +9,48 @@ from app.models.user import User
 from app.models.user_role import UserRole
 
 DEFAULT_PASSWORD = "correct-horse-battery-staple"
+
+
+def start_registration(client: TestClient, email: str):
+    return client.post("/api/v1/auth/register/start", json={"email": email})
+
+
+def resend_registration(client: TestClient, registration_token: str):
+    return client.post(
+        "/api/v1/auth/register/resend", json={"registration_token": registration_token}
+    )
+
+
+def verify_registration(client: TestClient, registration_token: str, otp: str):
+    return client.post(
+        "/api/v1/auth/register/verify",
+        json={"registration_token": registration_token, "otp": otp},
+    )
+
+
+def complete_registration(
+    client: TestClient, registration_token: str, password: str = DEFAULT_PASSWORD
+):
+    return client.post(
+        "/api/v1/auth/register/complete",
+        json={"registration_token": registration_token, "password": password},
+    )
+
+
+def extract_otp(email_body: str) -> str:
+    match = re.search(r"\b(\d{6})\b", email_body)
+    assert match is not None, f"no 6-digit OTP found in email body: {email_body!r}"
+    return match.group(1)
+
+
+def register_and_verify_email(client: TestClient, email_service, email: str) -> str:
+    """Runs start -> verify for a brand new email and returns the
+    registration_token, ready for complete_registration()."""
+    start_response = start_registration(client, email)
+    token = start_response.json()["registration_token"]
+    otp = extract_otp(email_service.sent[-1]["body"])
+    verify_registration(client, token, otp)
+    return token
 
 
 def register(client: TestClient, email: str, password: str = DEFAULT_PASSWORD):

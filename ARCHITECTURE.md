@@ -327,7 +327,87 @@ read only), which is still true for every notification type except
 
 ---
 
-# 9. Guided First-Login Onboarding (Phase 15)
+# 9. Email-Verified Registration (Phase 14)
+
+Candidate registration is no longer a single step. No `User` row is
+created until the candidate has proven ownership of the email address:
+
+```text
+POST /auth/register/start     -- email in, OTP sent, registration_token out
+        v
+POST /auth/register/verify    -- OTP in, pending registration marked verified
+        v
+POST /auth/register/complete  -- password in, User created (existing
+                                  register_user service, unchanged)
+```
+
+**`PendingRegistration` is a workflow row, not a second user table.**
+It holds an email, an argon2 hash of a 6-digit OTP, an expiry, an
+attempt counter, and a `verified_at` marker -- never a plaintext OTP
+and never a password. `app/services/registration.py` is the only code
+that reads/writes it; `complete_registration` hands off to the
+existing `auth_service.register_user` for the actual account creation
+rather than re-implementing password hashing, role assignment, or
+duplicate-email race handling a second time.
+
+**The registration token is a second JWT `type`, not a second JWT
+mechanism.** `create_pending_registration_token`/
+`decode_pending_registration_token` (`app/core/security.py`) reuse the
+same signing key and `jwt.encode`/`decode` calls as access tokens, just
+tagged `type: "pending_registration"` instead of `type: "access"`.
+Because `decode_access_token` rejects any token whose `type` isn't
+`"access"`, a registration token can never authenticate a request, and
+an access token can never be replayed into the registration endpoints
+-- the two token types are mutually exclusive by construction, not by
+an extra allowlist check.
+
+**Email delivery is a swappable boundary, same shape as resume
+storage.** `app/services/email.py` defines an `EmailService` Protocol;
+`ConsoleEmailService` (the default -- logs instead of sending, so
+dev/CI need zero configuration) and `SMTPEmailService` (configured
+entirely through env vars) both implement it. A future transactional
+email provider is a new class implementing `EmailService`, not a
+change to `app/services/registration.py` -- the same relationship
+`app/services/resume_storage.py`'s `ResumeStorage` already established
+between `app/services/resume.py` and local-disk-vs-S3. `EMAIL_PROVIDER`
+selects the instance: `console` (default), `smtp`/`mailtrap` (both
+currently resolve to `SMTPEmailService` -- Mailtrap's dev/staging
+testing inboxes are SMTP-credentialed, not API-token-credentialed, so
+they fit the generic SMTP class rather than needing Mailtrap's own
+SDK). `resend` is reserved for a future `ResendEmailService` for
+production; selecting it today is not yet implemented.
+
+**Email enumeration is closed by making `/register/start` take the
+same path either way.** Whether or not the submitted email already
+belongs to a confirmed account, `/register/start` returns the same
+response shape and the caller receives a structurally identical
+registration token. When the email is already taken, no
+`PendingRegistration` row is created and no OTP is ever sent, so the
+token is simply never verifiable -- the same generic
+"invalid or expired" error a wrong/expired OTP on a real pending
+registration would also produce. There is no separate code path whose
+presence/absence or response could be used to probe which emails are
+already registered.
+
+**No scheduled cleanup job.** A `PendingRegistration` row for a given
+email is reused (its OTP reissued) the next time that email starts
+registration, rather than left to accumulate and swept by a cron job
+-- consistent with this phase's scope rule against introducing
+background-worker infrastructure for a problem a request-time check
+already solves.
+
+**Known gap, not a silent one:** the pre-existing `POST /auth/register`
+endpoint (instant creation, no verification) was intentionally left in
+place rather than removed or gated, because it is the fixture the rest
+of the backend test suite uses to create test users
+(`tests/helpers.py`). The invariant "no account before verification"
+therefore holds for the candidate-facing frontend flow, not for the
+backend API surface as a whole -- see PROJECT_STATUS.md section 19.8
+for the full tradeoff.
+
+---
+
+# 10. Guided First-Login Onboarding (Phase 15)
 
 ```text
 Login

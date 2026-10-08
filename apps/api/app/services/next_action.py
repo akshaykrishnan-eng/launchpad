@@ -56,9 +56,23 @@ _PRIORITY: list[tuple[str, NextActionType, str, str, str]] = [
 
 def determine_next_action(breakdown: CompletionBreakdown) -> NextAction:
     """Returns the first incomplete component in priority order, or
-    PROFILE_COMPLETE if every component is already satisfied."""
+    PROFILE_COMPLETE if every component is already satisfied.
+
+    Work experience is optional: a candidate who has no experience entries
+    but has already completed a later step (career preferences or career
+    goal) has consciously moved past that step, so it is not returned as
+    the next action.  The detection is purely derived from the existing
+    CompletionBreakdown booleans -- no extra flag required."""
     for field_name, action_type, title, description, route in _PRIORITY:
         if not getattr(breakdown, field_name):
+            # Skip experience when the candidate has already moved past it.
+            # Completing career_preferences (the next required step) is
+            # sufficient proof they navigated through the experience screen
+            # and chose to continue without adding any entries.
+            if field_name == "experience" and (
+                breakdown.career_preferences or breakdown.career_goal
+            ):
+                continue
             return NextAction(type=action_type, title=title, description=description, route=route)
 
     return NextAction(

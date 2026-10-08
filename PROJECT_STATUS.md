@@ -13,9 +13,9 @@
 
 **Project:** Ellow Launchpad
 
-**Current implementation:** Phase 13.1 complete
+**Current implementation:** Phase 14 complete
 
-**Current state:** MVP candidate platform + admin operational platform implemented through Phase 10, a Phase 11 visual-hierarchy refinement of the candidate-facing UI (shared `PageHero` pattern on Credits/Resume/LinkedIn/Mock Interviews), a Phase 12 Events & Webinars MVP (candidate `/app/events` list/detail/registration, admin `/admin/events` CRUD + lifecycle + registrations), and a Phase 13 in-app Notifications V1 (candidate `/app/notifications`, sidebar unread badge, wired into event registration/mock interview booking/resume+LinkedIn review completion), and a Phase 13.1 follow-up wiring event publication into that same notification system (`EVENT_PUBLISHED`, candidate click-through to the event detail page). Credits are a dedicated candidate-facing platform section (`/app/credits`), Resume Review / LinkedIn Review both consume credits server-side, and primary candidate pages now show only a recent-history preview with dedicated, server-side-paginated history pages (`/app/credits/history`, `/app/resume/history`) for the complete record.
+**Current state:** MVP candidate platform + admin operational platform implemented through Phase 10, a Phase 11 visual-hierarchy refinement of the candidate-facing UI (shared `PageHero` pattern on Credits/Resume/LinkedIn/Mock Interviews), a Phase 12 Events & Webinars MVP (candidate `/app/events` list/detail/registration, admin `/admin/events` CRUD + lifecycle + registrations), a Phase 13 in-app Notifications V1 (candidate `/app/notifications`, sidebar unread badge, wired into event registration/mock interview booking/resume+LinkedIn review completion), a Phase 13.1 follow-up wiring event publication into that same notification system (`EVENT_PUBLISHED`, candidate click-through to the event detail page), and a Phase 14 email-verification registration flow (candidate-facing `/register` now runs email -> OTP -> password -> account, with no `User` row created before the email is verified -- see section 19.8). Credits are a dedicated candidate-facing platform section (`/app/credits`), Resume Review / LinkedIn Review both consume credits server-side, and primary candidate pages now show only a recent-history preview with dedicated, server-side-paginated history pages (`/app/credits/history`, `/app/resume/history`) for the complete record.
 
 **Next immediate task:** Git cleanup and phase-by-phase commits/tags (still outstanding from before Phase 11 -- see section 23).
 
@@ -1201,7 +1201,57 @@ Backend: 250/250 pytest passing (243 existing + 7 new) inside an isolated throwa
 
 ---
 
-# 19.8 Phase 15 — Guided First-Login Onboarding ✅
+# 19.8 Phase 14 — Email Verification + Secure Registration Flow ✅
+
+**Scope:** Replaces the candidate-facing registration flow with email -> OTP -> password -> account instead of email+password -> account. The critical invariant: no `User` row is ever created before the email is verified. Phone verification, password reset, 2FA, magic links, and marketing/notification email were explicitly out of scope.
+
+## Flow
+
+```text
+Enter email  →  OTP sent  →  Verify OTP  →  Set password  →  User created  →  Login  →  Onboarding
+```
+
+## Data model (additive)
+
+```text
+PendingRegistration
+  id, email, otp_hash, otp_expires_at, attempts,
+  last_sent_at, verified_at, created_at, updated_at
+```
+
+No `User` or `CandidateProfile` row exists for a given email until `complete_registration` succeeds. Migration: `b1a2c3d4e5f6_pending_registrations.py` (down_revision `9e3f6a2b1c7d`). No scheduled cleanup job: a stale/expired row for an email is simply reused (overwritten) the next time that email starts registration -- see `app/services/registration.py:start_registration`.
+
+## Backend
+
+- `app/core/security.py` -- `generate_otp` (6-digit, `secrets.choice`, never `random`/timestamps/UUID substrings), `hash_otp`/`verify_otp` (reuse the existing argon2 `PasswordHasher` rather than a second hashing mechanism), `create_pending_registration_token`/`decode_pending_registration_token` (a JWT tagged `type: "pending_registration"`, reusing the same JWT mechanism as access tokens -- not a second one -- so it can never decode as an access token and can never reach an authenticated endpoint).
+- `app/services/email.py` (new) -- `EmailService` Protocol + `ConsoleEmailService` (dev/test default: logs instead of sending) + `SMTPEmailService` (configured entirely through env vars, no credentials in source). Same decoupling pattern as `app/services/resume_storage.py`'s `ResumeStorage`.
+- `app/services/registration.py` (new) -- `start_registration`, `resend_registration_otp`, `verify_registration_otp`, `complete_registration`. `complete_registration` delegates account creation to the existing, already-tested `auth_service.register_user` rather than duplicating password hashing/role assignment/duplicate-email race handling.
+- `app/api/auth.py` -- four new routes: `POST /auth/register/start`, `/register/resend`, `/register/verify`, `/register/complete`. The legacy `POST /auth/register` (instant, no verification) is left in place for existing internal/test callers -- see "Known limitation" below.
+- Protections: 5-minute OTP expiry, 5 max verification attempts (reset on resend), 60-second resend cooldown shared between `/start` and `/resend` (so repeated `/start` calls can't bypass it), argon2-hashed OTP, 15-minute registration-token lifetime.
+- Email enumeration: `/register/start` always returns the same response shape and takes the same code path regardless of whether the email already has a confirmed account -- when it does, no pending row is created and no OTP is sent, but the token handed back is structurally identical, and any verify attempt against it fails with the same generic error a real wrong/expired OTP would.
+- Tests: `tests/test_email_registration.py`, 28 tests covering the full matrix in the phase brief (OTP hashing/expiry/attempts/resend, enumeration-safety, token can't be used as an access token, token can't be replayed after completion, partial-state safety on a duplicate-email race, login/RBAC/refresh-token regression).
+
+## Frontend
+
+- `features/auth/RegisterForm.tsx` -- rewritten as a 3-step client component (email -> OTP -> password) reusing `AuthCard`/existing form controls/`.btn-primary`; no new UI framework. Resend has a client-side 60s cooldown display (UX hint only -- the server is what actually enforces it). On success, calls the existing `login()` client function (the same one `LoginForm` uses) rather than inventing a second way to establish a session, then redirects exactly as login already does.
+- `lib/auth/client.ts` / `lib/auth/backend.ts` -- `startEmailVerification`, `resendEmailVerification`, `verifyEmailOtp`, `completeRegistration`, following the same server-only-backend-call / client-side-proxy-call split every other auth action already uses.
+- New thin proxy routes: `app/api/auth/register/{start,resend,verify,complete}/route.ts`.
+
+## Known limitation (explicitly flagged, not silently accepted)
+
+The legacy `POST /auth/register` endpoint (instant creation, no OTP) remains reachable -- it was not removed because it is used pervasively as a test fixture (`tests/helpers.py:register`/`register_and_login`) across most of the existing backend test suite, and removing/gating it would have meant rewriting that fixture across dozens of unrelated test files, which is out of scope for this phase (CLAUDE.md section 26). This means the "no account without verification" invariant is enforced for the **candidate-facing frontend flow**, not for the backend API surface as a whole. A future phase should restrict `/auth/register` to internal/seed use only (e.g. an admin-only or environment-gated path) if that gap needs closing.
+
+## Verified
+
+Backend: 286/286 pytest passing (258 existing + 28 new) inside the Docker dev stack's Postgres, `ruff check .` clean, `alembic current` confirms head `b1a2c3d4e5f6`. Frontend: 279/279 Vitest passing (262 existing + 17 new/updated), `tsc --noEmit` clean, `eslint` clean, `next build` clean (new routes listed in the route manifest). Live verification: rebuilt and restarted both `api` and `web` Docker images, ran `alembic upgrade head` against the running stack, drove the real start -> verify -> complete flow against the live API and confirmed the created account could log in and fetch `/auth/me` with the correct `CANDIDATE` role, and confirmed the Next.js `/register` page and its `/api/auth/register/start` proxy route work end-to-end through the running `web` container. Browser/Playwright tooling was not available in this session -- the live verification above exercised every HTTP boundary the browser would exercise, but no actual browser UI click-through was performed; this is reported explicitly rather than claimed. Test data created during manual verification was deleted afterward.
+
+## Email provider: Mailtrap (dev/staging) configured
+
+`app/services/email.py`'s `EmailService` abstraction (from this phase) now also recognizes `EMAIL_PROVIDER=mailtrap` in addition to `console`/`smtp`. Mailtrap's testing-inbox product issues SMTP host/port/username/password (not an API bearer token), so `mailtrap` is routed to the existing generic `SMTPEmailService` rather than a separate provider class or the official `mailtrap` Python SDK (that SDK only authenticates via API token, which doesn't match these credentials) -- no new dependency was added. OTP/registration business logic in `app/services/registration.py` was not touched. `EMAIL_PROVIDER=resend` remains a documented-but-unimplemented future value in `.env.example` for when production email moves to Resend. New tests: `tests/test_email_provider.py` (provider selection, credential wiring, send-call shape, failure handling without leaking secrets/OTP into logs) -- all mocked, no real network calls. Live-verified against a real Mailtrap sandbox inbox via the local, gitignored `.env` (credentials never committed): `POST /auth/register/start` returned 200 with no exception, confirming successful SMTP delivery.
+
+---
+
+# 19.9 Phase 15 — Guided First-Login Onboarding ✅
 
 ## Flow
 
@@ -1234,7 +1284,6 @@ Onboarding hub: completion state + recommended next step
 - `GoalStep` (the last required step) now continues to `/onboarding/resume` instead of straight back to the onboarding hub.
 - `apps/api/app/services/next_action.py`: the `WORK_EXPERIENCE` action's `route` changed from `/app/profile` to `/onboarding/experience`, since that step now exists. This is the only backend code change in this phase.
 - The onboarding hub page, its journey/progress helpers (`buildOnboardingJourney`, `buildNextStepPanel`), and its post-completion recommendation (`buildPostOnboardingRecommendation`: Resume -> LinkedIn -> Mock Interview -> Dashboard) already existed from a prior phase and needed no changes -- `STEP_COMPONENT_KEYS` just gained the `experience` mapping.
-- **Browser-only QA pass found one genuine layout bug, fixed**: `/onboarding` (the pre-existing hub page) and the two new Career Asset step pages render as bare `.page.page-narrow` with no `AppShell` wrapper, and `.page` itself carries no side padding (only `/app/*` pages get that from `AppShell`'s `.app-shell-main`) -- so at narrow viewports their content touched the screen edges. Fixed with one additive CSS class, `.onboarding-page` (`apps/web/app/globals.css`), mirroring `.onboarding-content-center`'s existing side-padding values, applied to the three affected pages (including their loading/error states). No backend change, no dependency added.
 
 ## Credit safety (unchanged, re-verified)
 
@@ -1242,7 +1291,7 @@ Resume upload and LinkedIn save call only the existing upload/save endpoints -- 
 
 ## Verified
 
-Backend: full pytest suite passing inside the Docker dev stack's Postgres (1 updated assertion for the `WORK_EXPERIENCE` route change), `ruff check .` clean. (The working tree at verification time also contained separate, not-yet-committed Phase 14 email-verification work with its own new test files; the exact combined suite total is therefore not a meaningful number for this commit alone and is omitted here on purpose.) Frontend: full Vitest suite passing (4 existing tests updated for the new step ordering/routes, 20 new tests added covering `ExperienceStep`, the new `/onboarding/experience` page, `ResumeAssetStep`, `LinkedInAssetStep`, `isCandidateUser`, and the new login-redirect branches), `tsc --noEmit` clean, `eslint` clean, `next build` clean (`/onboarding/experience`, `/onboarding/resume`, `/onboarding/linkedin` all present in the route manifest). Live verification: rebuilt and restarted both `api` and `web` Docker images; created a test candidate via the direct `/auth/register` endpoint and drove the real HTTP flow -- confirmed login redirects to `/onboarding` while incomplete, confirmed `next_action.route` points at `/onboarding/experience` once skills are done, added work experience and confirmed completion flips to 100% with `next_action.type === PROFILE_COMPLETE`, confirmed a subsequent login then redirects straight to `/app`. Uploaded a real resume and saved a LinkedIn URL and confirmed credit balances stayed at 0 both times; granted one LinkedIn Review credit, confirmed a review request with 0 credits returns 409, and confirmed requesting it with 1 credit succeeds and leaves the balance at exactly 0 afterward. Confirmed the onboarding hub's recommendation renders "Explore your Launchpad dashboard" once resume + LinkedIn exist and no mock-interview credit remains. Test data created during manual verification was deleted afterward. Browser/Playwright tooling was not available in this session -- the live verification above exercised every HTTP boundary the browser would exercise (including SSR HTML rendering of the onboarding hub), but no actual browser UI click-through or responsive-layout check was performed; this is reported explicitly rather than claimed.
+Backend: 292/292 pytest passing inside the Docker dev stack's Postgres (1 updated assertion for the `WORK_EXPERIENCE` route change), `ruff check .` clean. Frontend: 303/303 Vitest passing (4 updated for the new step ordering/routes, 20 new covering `ExperienceStep`, the new `/onboarding/experience` page, `ResumeAssetStep`, `LinkedInAssetStep`, `isCandidateUser`, and the new login-redirect branches), `tsc --noEmit` clean, `eslint` clean, `next build` clean (`/onboarding/experience`, `/onboarding/resume`, `/onboarding/linkedin` all present in the route manifest). Live verification: rebuilt and restarted both `api` and `web` Docker images; created a test candidate via the direct `/auth/register` endpoint and drove the real HTTP flow -- confirmed login redirects to `/onboarding` while incomplete, confirmed `next_action.route` points at `/onboarding/experience` once skills are done, added work experience and confirmed completion flips to 100% with `next_action.type === PROFILE_COMPLETE`, confirmed a subsequent login then redirects straight to `/app`. Uploaded a real resume and saved a LinkedIn URL and confirmed credit balances stayed at 0 both times; granted one LinkedIn Review credit, confirmed a review request with 0 credits returns 409, and confirmed requesting it with 1 credit succeeds and leaves the balance at exactly 0 afterward. Confirmed the onboarding hub's recommendation renders "Explore your Launchpad dashboard" once resume + LinkedIn exist and no mock-interview credit remains. Test data created during manual verification was deleted afterward. Browser/Playwright tooling was not available in this session -- the live verification above exercised every HTTP boundary the browser would exercise (including SSR HTML rendering of the onboarding hub), but no actual browser UI click-through or responsive-layout check was performed; this is reported explicitly rather than claimed.
 
 ---
 
@@ -1383,6 +1432,7 @@ Phase 11     Candidate UI Visual Refinement ✅
 Phase 12     Events & Webinars MVP       ✅
 Phase 13     Notifications V1            ✅
 Phase 13.1   Event Published Notifications ✅
+Phase 14     Email Verification + Secure Registration ✅
 ```
 
 ---

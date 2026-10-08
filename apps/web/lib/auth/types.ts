@@ -15,3 +15,7 @@ export type TokenResponse = {
 export type ApiErrorBody = {
   detail?: string | { msg: string; loc: unknown[] }[];
 };
+
+export type RegistrationTokenResponse = {
+  registration_token: string;
+};

@@ -46,11 +46,59 @@ def test_skills_is_next_action_when_only_skills_is_missing() -> None:
     assert action.route == "/onboarding/skills"
 
 
-def test_work_experience_is_next_action_when_only_experience_is_missing() -> None:
-    action = determine_next_action(_breakdown(experience=False))
+def test_work_experience_is_next_action_when_candidate_has_not_yet_passed_it() -> None:
+    """Experience is still the next action when the candidate hasn't
+    moved on to career_preferences or career_goal yet -- they're still
+    at (or approaching) that step."""
+    action = determine_next_action(
+        _breakdown(experience=False, career_preferences=False, career_goal=False)
+    )
 
     assert action.type == NextActionType.WORK_EXPERIENCE
     assert action.route == "/onboarding/experience"
+
+
+def test_work_experience_is_skipped_when_candidate_has_completed_career_preferences() -> None:
+    """Experience is optional.  A candidate who navigated through the
+    experience screen without adding entries and then completed career
+    preferences has consciously moved past experience.  next_action
+    must NOT return WORK_EXPERIENCE -- it must skip to career_goal."""
+    action = determine_next_action(
+        _breakdown(experience=False, career_preferences=True, career_goal=False)
+    )
+
+    assert action.type == NextActionType.CAREER_GOAL
+    assert action.route == "/onboarding/goal"
+
+
+def test_profile_complete_when_experience_skipped_and_all_other_steps_done() -> None:
+    """Skipping work experience must not prevent PROFILE_COMPLETE once
+    all other required sections are satisfied."""
+    action = determine_next_action(
+        _breakdown(experience=False, career_preferences=True, career_goal=True)
+    )
+
+    assert action.type == NextActionType.PROFILE_COMPLETE
+
+
+def test_work_experience_is_skipped_when_only_career_goal_is_complete() -> None:
+    """career_goal being done is also sufficient evidence the candidate
+    has moved past the experience step."""
+    action = determine_next_action(
+        _breakdown(experience=False, career_preferences=False, career_goal=True)
+    )
+
+    assert action.type == NextActionType.CAREER_PREFERENCES
+
+
+def test_priority_order_still_respected_when_earlier_step_also_missing() -> None:
+    """Even with the experience-skip rule, an earlier required step
+    (like skills) must still take priority."""
+    action = determine_next_action(
+        _breakdown(skills=False, experience=False, career_preferences=True)
+    )
+
+    assert action.type == NextActionType.SKILLS
 
 
 def test_career_preferences_is_next_action_when_only_preferences_is_missing() -> None:

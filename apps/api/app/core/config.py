@@ -37,6 +37,29 @@ class Settings(BaseSettings):
     resume_storage_dir: str = "/app/storage/resumes"
     resume_max_size_mb: int = 5
 
+    # Email verification (registration OTP). See
+    # app/services/registration.py and app/services/email.py.
+    otp_expire_minutes: int = 5
+    otp_max_attempts: int = 5
+    otp_resend_cooldown_seconds: int = 60
+    # Covers the whole start -> verify -> complete flow, not just the
+    # OTP's own lifetime -- must outlive otp_expire_minutes since a
+    # candidate may resend (which re-arms the OTP clock) without the
+    # registration token itself being reissued.
+    pending_registration_token_expire_minutes: int = 15
+
+    # Email delivery. "console" (default) logs the email instead of
+    # sending it, so local/dev/test environments need zero email
+    # configuration. Set to "smtp" and provide the smtp_* settings below
+    # to send real email -- see app/services/email.py.
+    email_provider: str = "console"
+    email_from: str = "Launchpad <no-reply@launchpad.dev>"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

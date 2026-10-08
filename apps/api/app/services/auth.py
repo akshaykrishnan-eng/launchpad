@@ -37,6 +37,11 @@ class InactiveUserError(Exception):
     pass
 
 
+class EmailNotVerifiedError(Exception):
+    """Raised when a login attempt is made for an account whose email has
+    not been verified through the OTP flow."""
+
+
 class InvalidRefreshTokenError(Exception):
     pass
 
@@ -94,6 +99,11 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
         raise InvalidCredentialsError
     if not user.is_active:
         raise InactiveUserError
+    # Check email_verified after credentials to avoid leaking whether an
+    # email exists (wrong email → InvalidCredentialsError, correct email +
+    # correct password + unverified → EmailNotVerifiedError).
+    if not user.email_verified:
+        raise EmailNotVerifiedError
 
     user.last_login_at = datetime.now(UTC)
     await db.commit()

@@ -1,7 +1,12 @@
 import "server-only";
 
 import { config } from "@/lib/config";
-import type { ApiErrorBody, TokenResponse, UserPublic } from "@/lib/auth/types";
+import type {
+  ApiErrorBody,
+  RegistrationTokenResponse,
+  TokenResponse,
+  UserPublic,
+} from "@/lib/auth/types";
 
 /** Calls FastAPI directly over the Docker network (internalApiUrl), never
  * through this app's own /api routes -- this IS the server side of the
@@ -78,6 +83,48 @@ export async function fetchCurrentUser(
 ): Promise<BackendResult<UserPublic>> {
   const response = await callApi("/api/v1/auth/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return toResult<UserPublic>(response);
+}
+
+export async function startEmailVerification(
+  email: string,
+): Promise<BackendResult<RegistrationTokenResponse>> {
+  const response = await callApi("/api/v1/auth/register/start", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return toResult<RegistrationTokenResponse>(response);
+}
+
+export async function resendEmailVerification(
+  registrationToken: string,
+): Promise<BackendResult<undefined>> {
+  const response = await callApi("/api/v1/auth/register/resend", {
+    method: "POST",
+    body: JSON.stringify({ registration_token: registrationToken }),
+  });
+  return toResult<undefined>(response);
+}
+
+export async function verifyEmailOtp(
+  registrationToken: string,
+  otp: string,
+): Promise<BackendResult<undefined>> {
+  const response = await callApi("/api/v1/auth/register/verify", {
+    method: "POST",
+    body: JSON.stringify({ registration_token: registrationToken, otp }),
+  });
+  return toResult<undefined>(response);
+}
+
+export async function completeRegistration(
+  registrationToken: string,
+  password: string,
+): Promise<BackendResult<UserPublic>> {
+  const response = await callApi("/api/v1/auth/register/complete", {
+    method: "POST",
+    body: JSON.stringify({ registration_token: registrationToken, password }),
   });
   return toResult<UserPublic>(response);
 }
