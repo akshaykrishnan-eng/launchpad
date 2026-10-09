@@ -41,7 +41,7 @@ describe("TopBar", () => {
 
     render(<TopBar email="akshay@example.com" unreadCount={0} onOpenMobileMenu={vi.fn()} />);
 
-    expect(screen.getByPlaceholderText("Search anything...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search pages...")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /notifications/i })).toHaveAttribute(
       "href",
       "/app/notifications",

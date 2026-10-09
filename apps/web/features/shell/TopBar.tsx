@@ -9,9 +9,9 @@ import {
   LogoutIcon,
   MenuIcon,
   ProfileIcon,
-  SearchIcon,
 } from "@/components/icons";
 import { LogoutButton } from "@/features/auth/LogoutButton";
+import { CandidateSearch } from "@/features/shell/CandidateSearch";
 import { NotificationBadge } from "@/features/notifications/NotificationBadge";
 import { getProfile } from "@/lib/candidate/client";
 import type { CandidateProfile } from "@/lib/candidate/types";
@@ -91,15 +91,7 @@ export function TopBar({ email, unreadCount, onOpenMobileMenu }: TopBarProps) {
         <MenuIcon aria-hidden />
       </button>
 
-      <div className="app-topbar-search">
-        <SearchIcon aria-hidden className="app-topbar-search-icon" />
-        <input
-          type="search"
-          placeholder="Search anything..."
-          aria-label="Search"
-          className="app-topbar-search-input"
-        />
-      </div>
+      <CandidateSearch />
 
       <div className="app-topbar-actions">
         <Link href="/app/notifications" className="app-topbar-bell" aria-label="Notifications">
