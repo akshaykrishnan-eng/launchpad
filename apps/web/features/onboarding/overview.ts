@@ -3,6 +3,22 @@ import type { NextAction, ProfileCompletionComponents } from "@/lib/candidate/ty
 
 type StepState = "complete" | "current" | "upcoming";
 
+// Maps each onboarding step path to the corresponding key in
+// ProfileCompletionComponents so individual step completion is derived
+// from the backend's actual data rather than positional order.
+const STEP_COMPONENT_KEYS: Record<OnboardingStepPath, keyof ProfileCompletionComponents> = {
+  "/onboarding/about": "personal_information",
+  "/onboarding/education": "education",
+  "/onboarding/skills": "skills",
+  "/onboarding/experience": "experience",
+  "/onboarding/career": "career_preferences",
+  "/onboarding/goal": "career_goal",
+};
+
+const EXPERIENCE_STEP_INDEX = ONBOARDING_STEPS.findIndex(
+  (s) => s.path === "/onboarding/experience",
+);
+
 export type OnboardingJourneyStep = {
   path: OnboardingStepPath;
   label: string;
@@ -14,32 +30,52 @@ export type OnboardingJourney = {
   currentIndex: number;
 };
 
-/** Builds the onboarding journey using the backend's next_action as the
- * authoritative source of "where the candidate is now".  Using
- * next_action.route (rather than re-deriving from component booleans)
- * means optional steps like Work Experience are handled consistently:
- * if the backend has already moved past experience, the hub reflects
- * that rather than re-flagging it as incomplete.
+/** Builds the onboarding journey using the backend's data as the sole
+ * authoritative source.  next_action.route determines which step is
+ * "current"; ProfileCompletionComponents determines which individual
+ * steps are actually done.  Using components (rather than purely
+ * positional logic) means a later step that has already been saved —
+ * e.g. Career Goal completed while Career Interests is still pending —
+ * is shown as "complete" rather than "upcoming".
  *
- * currentIndex === -1 means every step is done (next_action.route
- * points to a non-step path like "/app/profile"). */
+ * Work Experience is optional: when not complete but next_action has
+ * already moved past it (currentIndex > EXPERIENCE_STEP_INDEX), the
+ * candidate consciously skipped it and the step is shown as resolved.
+ *
+ * currentIndex === -1 means PROFILE_COMPLETE (next_action.route points
+ * to a non-step path like "/app/profile"). */
 export function buildOnboardingJourney(
-  _components: ProfileCompletionComponents,
+  components: ProfileCompletionComponents,
   nextAction: NextAction,
 ): OnboardingJourney {
   const currentIndex = ONBOARDING_STEPS.findIndex(
     (step) => step.path === nextAction.route,
   );
 
-  const steps = ONBOARDING_STEPS.map((step, index) => ({
-    path: step.path,
-    label: step.label,
-    state: (currentIndex === -1 || index < currentIndex
-      ? "complete"
-      : index === currentIndex
-        ? "current"
-        : "upcoming") as StepState,
-  }));
+  const steps = ONBOARDING_STEPS.map((step, index) => {
+    const done = components[STEP_COMPONENT_KEYS[step.path]];
+
+    let state: StepState;
+    if (currentIndex === -1) {
+      // PROFILE_COMPLETE: all required sections satisfied by definition.
+      state = "complete";
+    } else if (done) {
+      // The backend's actual component data says this section is done —
+      // mark complete regardless of whether it falls before or after
+      // the current step in the list.
+      state = "complete";
+    } else if (step.path === nextAction.route) {
+      state = "current";
+    } else if (index === EXPERIENCE_STEP_INDEX && currentIndex > EXPERIENCE_STEP_INDEX) {
+      // Work Experience: no entries, but the candidate has already moved
+      // past it (next action is Career Interests or later) — skipped.
+      state = "complete";
+    } else {
+      state = "upcoming";
+    }
+
+    return { path: step.path, label: step.label, state };
+  });
 
   return { steps, currentIndex };
 }

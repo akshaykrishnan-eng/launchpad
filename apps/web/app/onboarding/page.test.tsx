@@ -226,6 +226,40 @@ describe("OnboardingOverviewPage", () => {
     );
   });
 
+  it("marks Career Goal as completed in the stepper even when Career Interests is still the current step", async () => {
+    // Core regression: the old buildOnboardingJourney used purely positional
+    // logic so anything after the current step showed as "up next" even when
+    // components said it was already done.  Career Goal saved first, then the
+    // candidate goes back to fill in Career Interests -- Goal must remain
+    // "Completed", not flip to "Up next".
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(
+      dashboard({
+        percentage: 70,
+        components: {
+          personal_information: true,
+          education: true,
+          skills: true,
+          career_goal: true,
+        },
+        nextAction: {
+          type: "CAREER_PREFERENCES",
+          title: "Set your career preferences",
+          description: "Tell us which roles and locations you're interested in.",
+          route: "/onboarding/career",
+        },
+      }),
+    );
+
+    render(await OnboardingOverviewPage());
+
+    // Career Interests is genuinely incomplete → shown as current step
+    expect(screen.getByRole("link", { name: /career interests.*your next step/i })).toBeInTheDocument();
+    // Career Goal is already saved → must show as completed, not "up next"
+    expect(screen.getByRole("link", { name: /career goal.*completed/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /career goal.*up next/i })).not.toBeInTheDocument();
+  });
+
   it("shows Career Interests as the next step after experience is skipped", async () => {
     // Candidate skipped experience and the backend has already moved
     // next_action to CAREER_PREFERENCES.
