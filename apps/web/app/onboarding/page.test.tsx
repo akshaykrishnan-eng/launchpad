@@ -346,6 +346,38 @@ describe("OnboardingOverviewPage", () => {
     expect(screen.getByText("Explore your Launchpad dashboard")).toBeInTheDocument();
   });
 
+  it("Resume 'Add later' navigates to the LinkedIn step without uploading anything", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(completeDashboard());
+    getServerResumes.mockResolvedValue([]);
+    getServerLinkedInProfile.mockResolvedValue(null);
+    getServerCredits.mockResolvedValue([]);
+
+    render(await OnboardingOverviewPage());
+
+    // There are two Career Asset cards; find the Resume one specifically.
+    const resumeCard = screen.getByRole("heading", { name: /resume centre/i }).closest(".card")!;
+    const addLater = within(resumeCard as HTMLElement).getByRole("link", { name: /add later/i });
+    expect(addLater).toHaveAttribute("href", "/onboarding/linkedin");
+    // Must not be disabled — disabled links cannot be activated.
+    expect(addLater).not.toHaveAttribute("disabled");
+  });
+
+  it("LinkedIn 'Add later' navigates to the dashboard without saving a URL", async () => {
+    getAccessToken.mockResolvedValue("token");
+    getServerDashboard.mockResolvedValue(completeDashboard());
+    getServerResumes.mockResolvedValue([]);
+    getServerLinkedInProfile.mockResolvedValue(null);
+    getServerCredits.mockResolvedValue([]);
+
+    render(await OnboardingOverviewPage());
+
+    const linkedInCard = screen.getByRole("heading", { name: /linkedin centre/i }).closest(".card")!;
+    const addLater = within(linkedInCard as HTMLElement).getByRole("link", { name: /add later/i });
+    expect(addLater).toHaveAttribute("href", "/app");
+    expect(addLater).not.toHaveAttribute("disabled");
+  });
+
   it("always offers a way to the dashboard once onboarding is complete", async () => {
     getAccessToken.mockResolvedValue("token");
     getServerDashboard.mockResolvedValue(completeDashboard());

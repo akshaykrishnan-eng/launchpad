@@ -286,9 +286,9 @@ export default async function OnboardingOverviewPage() {
               <Link href="/app/resume" className="btn-outline btn-sm">
                 Add resume
               </Link>
-              <button type="button" className="btn-ghost btn-sm" disabled>
+              <Link href="/onboarding/linkedin" className="btn-ghost btn-sm">
                 Add later
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -313,9 +313,9 @@ export default async function OnboardingOverviewPage() {
               <Link href="/app/linkedin" className="btn-outline btn-sm">
                 Add LinkedIn
               </Link>
-              <button type="button" className="btn-ghost btn-sm" disabled>
+              <Link href="/app" className="btn-ghost btn-sm">
                 Add later
-              </button>
+              </Link>
             </div>
           </div>
         </div>
