@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -9,6 +9,7 @@ import { CentreLoadingSkeleton } from "@/components/Skeleton";
 import { ResumeCard } from "@/features/resume/ResumeCard";
 import { ResumeHistory } from "@/features/resume/ResumeHistory";
 import { ResumeUpload } from "@/features/resume/ResumeUpload";
+import { ResumeVersionUploadPanel } from "@/features/resume/ResumeVersionUploadPanel";
 import { getCredits } from "@/lib/credits/client";
 import type { CreditBalance } from "@/lib/credits/types";
 import { getReview, listResumes } from "@/lib/resume/client";
@@ -29,6 +30,21 @@ export function ResumeCentre() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the upload panel into view and focus the heading after it mounts.
+  // Only fires on open (isUploadOpen === true); the early-return guard prevents
+  // spurious scrolls when the panel closes or on unrelated re-renders.
+  useEffect(() => {
+    if (!isUploadOpen || !panelRef.current) return;
+    const panel = panelRef.current;
+    const rAF = requestAnimationFrame(() => {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panel.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "nearest" });
+      panel.querySelector<HTMLElement>("h2")?.focus();
+    });
+    return () => cancelAnimationFrame(rAF);
+  }, [isUploadOpen]);
 
   useEffect(() => {
     Promise.all([listResumes(), getCredits()]).then(async ([resumesResult, creditsResult]) => {
@@ -67,6 +83,11 @@ export function ResumeCentre() {
     });
   }, []);
 
+  const handleUploaded = useCallback(() => {
+    setIsUploadOpen(false);
+    refresh();
+  }, [refresh]);
+
   if (isLoading) {
     return <CentreLoadingSkeleton label="Loading your Resume Centre..." />;
   }
@@ -100,7 +121,7 @@ export function ResumeCentre() {
         metric={latest.original_filename}
         description={`Version ${latest.version} · Uploaded ${formatDate(latest.uploaded_at)}`}
         action={
-          <button type="button" className="btn-primary hero-cta" onClick={() => setIsUploadOpen(true)}>
+          <button type="button" className="btn-primary hero-cta" onClick={() => setIsUploadOpen((open) => !open)}>
             Upload new version
           </button>
         }
@@ -113,22 +134,13 @@ export function ResumeCentre() {
         onReviewRequested={refresh}
       />
 
-      <div>
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          onClick={() => setIsUploadOpen((open) => !open)}
-          aria-expanded={isUploadOpen}
-          style={{ fontWeight: 600 }}
-        >
-          {isUploadOpen ? "Hide upload" : "Upload a new version"}
-        </button>
-        {isUploadOpen && (
-          <div style={{ marginTop: "0.875rem" }}>
-            <ResumeUpload onUploaded={refresh} />
-          </div>
-        )}
-      </div>
+      {isUploadOpen && (
+        <ResumeVersionUploadPanel
+          ref={panelRef}
+          onUploaded={handleUploaded}
+          onCancel={() => setIsUploadOpen(false)}
+        />
+      )}
 
       {resumes && <ResumeHistory resumes={resumes} limit={3} />}
     </div>
