@@ -888,7 +888,7 @@ pytest` must not be run casually against the dev stack.
 ## Frontend
 
 ```text
-319 / 319 passing
+320 / 320 passing
 ```
 
 Includes:
@@ -912,7 +912,7 @@ Includes:
 - event-published notification icon and navigation
 - email-verified registration (3-step form, resend cooldown, already-registered link)
 - proxy middleware (auth-only, no onboarding gate)
-- onboarding hub (step progress, career assets, "Add later" navigation)
+- onboarding hub (step progress, career assets, "Add later" navigation, career goal shown complete when career interests is pending)
 - onboarding step validation (skills minimum-1, career interests minimum-1 role + location)
 - dashboard profile-completion banner
 - loading states

@@ -193,10 +193,337 @@ describe("MockInterviewCentre", () => {
     expect(screen.getByText("Upcoming")).toBeInTheDocument();
     expect(screen.getByText("Completed")).toBeInTheDocument();
 
+    // Feedback is not rendered inline before the modal opens.
     expect(screen.queryByText("Great technical depth.")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /view feedback/i }));
+    // Modal opens and shows the correct feedback.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Great technical depth.")).toBeInTheDocument();
     expect(screen.getByText("82")).toBeInTheDocument();
+    // The feedback heading includes the interview type.
+    expect(screen.getByRole("heading", { name: /technical interview feedback/i })).toBeInTheDocument();
+  });
+
+  it("closes the feedback modal when the header close button is clicked", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past2",
+          interview_type: "HR",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-09-10T09:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 7,
+            confidence_score: 8,
+            technical_score: 6,
+            answer_structure_score: 7,
+            professional_presentation_score: 8,
+            overall_score: 72,
+            feedback: "Good communication skills.",
+            recommendations: [],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close feedback/i }));
+    expect(screen.queryByText("Good communication skills.")).not.toBeInTheDocument();
+  });
+
+  it("closes the feedback modal via the footer Close button", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past2b",
+          interview_type: "HR",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-09-11T09:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 7,
+            confidence_score: 8,
+            technical_score: 6,
+            answer_structure_score: 7,
+            professional_presentation_score: 8,
+            overall_score: 72,
+            feedback: "Solid communication overall.",
+            recommendations: [],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+    expect(screen.getByText("Solid communication overall.")).toBeInTheDocument();
+
+    // Footer "Close" button (distinct from the header icon button)
+    fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
+    expect(screen.queryByText("Solid communication overall.")).not.toBeInTheDocument();
+  });
+
+  it("shows the overall score in the score ring when the modal opens", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past5",
+          interview_type: "TECHNICAL",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-09-15T10:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 8,
+            confidence_score: 7,
+            technical_score: 9,
+            answer_structure_score: 8,
+            professional_presentation_score: 7,
+            overall_score: 78,
+            feedback: "Strong technical performance.",
+            recommendations: ["Review system design fundamentals"],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+
+    // Score ring value
+    expect(screen.getByText("78")).toBeInTheDocument();
+    // Score label
+    expect(screen.getByText("Overall Score")).toBeInTheDocument();
+    // Score ring progressbar with aria-valuenow
+    expect(screen.getByRole("progressbar", { name: /overall score/i })).toHaveAttribute("aria-valuenow", "78");
+  });
+
+  it("renders all five evaluation criteria cards in the modal", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past6",
+          interview_type: "BEHAVIOURAL",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-09-20T11:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 8,
+            confidence_score: 9,
+            technical_score: 7,
+            answer_structure_score: 8,
+            professional_presentation_score: 8,
+            overall_score: 80,
+            feedback: "Well-structured answers throughout.",
+            recommendations: [],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+
+    expect(screen.getByText("Communication")).toBeInTheDocument();
+    expect(screen.getByText("Confidence")).toBeInTheDocument();
+    expect(screen.getByText("Technical Knowledge")).toBeInTheDocument();
+    expect(screen.getByText("Answer Structure")).toBeInTheDocument();
+    expect(screen.getByText("Professional Presentation")).toBeInTheDocument();
+    // Heading above the grid
+    expect(screen.getByRole("heading", { name: /evaluation criteria/i })).toBeInTheDocument();
+  });
+
+  it("displays feedback text and recommendations sections with real data", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past7",
+          interview_type: "HR",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-09-25T09:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 9,
+            confidence_score: 8,
+            technical_score: 7,
+            answer_structure_score: 9,
+            professional_presentation_score: 9,
+            overall_score: 85,
+            feedback: "Excellent interpersonal skills on display.",
+            recommendations: ["Prepare STAR stories", "Research the company culture"],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+
+    expect(screen.getByRole("heading", { name: /^feedback$/i })).toBeInTheDocument();
+    expect(screen.getByText("Excellent interpersonal skills on display.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /recommendations/i })).toBeInTheDocument();
+    expect(screen.getByText("Prepare STAR stories")).toBeInTheDocument();
+    expect(screen.getByText("Research the company culture")).toBeInTheDocument();
+  });
+
+  it("omits the Recommendations section when the API returns an empty array", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past8",
+          interview_type: "FINAL_PREP",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-10-01T14:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 9,
+            confidence_score: 9,
+            technical_score: 9,
+            answer_structure_score: 9,
+            professional_presentation_score: 9,
+            overall_score: 95,
+            feedback: "Outstanding preparation.",
+            recommendations: [],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+
+    expect(screen.queryByRole("heading", { name: /recommendations/i })).not.toBeInTheDocument();
+  });
+
+  it("shows a graceful empty state when feedback is null for a completed interview", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past3",
+          interview_type: "BEHAVIOURAL",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-08-20T11:00:00Z",
+          created_at: "x",
+          feedback: null,
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+
+    // No "View Feedback" button when there is no feedback.
+    await screen.findByText("Behavioural Interview");
+    expect(screen.queryByRole("button", { name: /view feedback/i })).not.toBeInTheDocument();
+  });
+
+  it("does not expand feedback inline beneath the interview card", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past4",
+          interview_type: "FINAL_PREP",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-07-05T14:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 9,
+            confidence_score: 9,
+            technical_score: 8,
+            answer_structure_score: 9,
+            professional_presentation_score: 9,
+            overall_score: 90,
+            feedback: "Excellent final prep session.",
+            recommendations: ["Keep practising"],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+
+    await screen.findByRole("button", { name: /view feedback/i });
+    // Feedback text must not be visible before clicking the button.
+    expect(screen.queryByText("Excellent final prep session.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /view feedback/i }));
+    // Feedback renders inside the modal, not below the card.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Excellent final prep session.")).toBeInTheDocument();
+  });
+
+  it("preserves the interview list after closing the feedback modal", async () => {
+    getCredits.mockResolvedValue({ ok: true, data: ZERO_BALANCES });
+    listInterviews.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "past9",
+          interview_type: "TECHNICAL",
+          role: null,
+          status: "COMPLETED",
+          scheduled_at: "2026-08-01T10:00:00Z",
+          created_at: "x",
+          feedback: {
+            communication_score: 7,
+            confidence_score: 7,
+            technical_score: 8,
+            answer_structure_score: 7,
+            professional_presentation_score: 7,
+            overall_score: 71,
+            feedback: "Good technical depth.",
+            recommendations: [],
+            created_at: "x",
+          },
+        },
+      ],
+    });
+
+    render(<MockInterviewCentre />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view feedback/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close feedback/i }));
+    // Interview list remains unchanged after close
+    expect(await screen.findByText("Technical Interview")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.queryByText("Good technical depth.")).not.toBeInTheDocument();
   });
 
 });
