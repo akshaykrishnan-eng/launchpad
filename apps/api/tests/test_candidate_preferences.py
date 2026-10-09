@@ -85,6 +85,23 @@ def test_too_many_preference_values_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_empty_preferences_do_not_count_as_complete_in_dashboard(client: TestClient) -> None:
+    """Saving empty roles and locations must keep career_preferences False
+    in the dashboard.  This mirrors the frontend validation: at least one
+    role AND one location are required before career_preferences is satisfied."""
+    headers = candidate_client(client, "pref.empty.dash@example.com")
+
+    client.patch(
+        "/api/v1/candidate/preferences",
+        headers=headers,
+        json={"preferred_roles": [], "preferred_locations": []},
+    )
+
+    body = client.get("/api/v1/candidate/dashboard", headers=headers).json()
+
+    assert body["profile_completion"]["components"]["career_preferences"] is False
+
+
 def test_candidates_have_independent_preferences(client: TestClient) -> None:
     headers_a = candidate_client(client, "pref.a@example.com")
     headers_b = candidate_client(client, "pref.b@example.com")

@@ -69,10 +69,23 @@ describe("SkillsStep", () => {
     await waitFor(() => expect(screen.queryByText("Python")).not.toBeInTheDocument());
   });
 
-  it("continues to the next step without requiring any skills", async () => {
+  it("blocks Continue and shows an error when no skills have been added", async () => {
     listSkills.mockResolvedValue({ ok: true, data: [] });
     render(<SkillsStep />);
     await screen.findByPlaceholderText("e.g. Python");
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Add at least one skill to continue.",
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("continues to the next step once at least one skill has been added", async () => {
+    listSkills.mockResolvedValue({ ok: true, data: [{ id: "1", name: "Python" }] });
+    render(<SkillsStep />);
+    await screen.findByText("Python");
 
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 

@@ -30,6 +30,10 @@ export function CareerStep() {
   }, []);
 
   async function handleContinue() {
+    if (preferredRoles.length === 0 || preferredLocations.length === 0) {
+      setError("Add at least one preferred role and one preferred location to continue.");
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
     const result = await updatePreferences({

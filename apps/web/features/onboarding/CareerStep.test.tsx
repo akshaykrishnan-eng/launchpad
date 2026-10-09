@@ -65,10 +65,44 @@ describe("CareerStep", () => {
     expect(push).toHaveBeenCalledWith("/onboarding/goal");
   });
 
-  it("shows an error and does not navigate when save fails", async () => {
+  it("blocks Continue and shows an error when no roles have been added", async () => {
     getPreferences.mockResolvedValue({
       ok: true,
       data: { preferred_roles: [], preferred_locations: [] },
+    });
+    render(<CareerStep />);
+    await screen.findByPlaceholderText("e.g. Software Developer");
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Add at least one preferred role and one preferred location to continue.",
+    );
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("blocks Continue and shows an error when roles are set but locations are empty", async () => {
+    getPreferences.mockResolvedValue({
+      ok: true,
+      data: { preferred_roles: ["Software Developer"], preferred_locations: [] },
+    });
+    render(<CareerStep />);
+    await screen.findByText("Software Developer");
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Add at least one preferred role and one preferred location to continue.",
+    );
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and does not navigate when save fails", async () => {
+    getPreferences.mockResolvedValue({
+      ok: true,
+      data: { preferred_roles: ["Software Developer"], preferred_locations: ["Remote"] },
     });
     updatePreferences.mockResolvedValue({ ok: false, error: "Something went wrong" });
     render(<CareerStep />);

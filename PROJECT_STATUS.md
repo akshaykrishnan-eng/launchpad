@@ -850,7 +850,7 @@ updates described above); no backend file was touched.
 ## Backend
 
 ```text
-201 / 201 passing
+304 / 304 passing
 ```
 
 Includes:
@@ -872,6 +872,12 @@ Includes:
 - credit ledger
 - credit-race concurrency (resume/LinkedIn review, mock interview booking)
 - validation/error paths
+- events and webinars (visibility, registration, admin CRUD/lifecycle)
+- notifications (CRUD, pagination, IDOR, workflow integration, failure isolation)
+- event-published bulk notification fan-out
+- email-verified registration (OTP flow, enumeration-safety, token lifecycle, already-registered 409)
+- email provider selection (Mailtrap SMTP wiring)
+- career preferences completion (empty lists do not satisfy career_preferences component)
 
 Run against an isolated, throwaway Postgres container rather than the
 shared dev database -- see section 18 on why `docker compose exec api
@@ -882,7 +888,7 @@ pytest` must not be run casually against the dev stack.
 ## Frontend
 
 ```text
-223 / 223 passing
+319 / 319 passing
 ```
 
 Includes:
@@ -901,6 +907,14 @@ Includes:
 - Resume Centre history preview (limit, View all behavior)
 - Resume History (pagination, empty state)
 - resume/LinkedIn credit-aware request UI (sufficient/insufficient states)
+- events and webinars (candidate list/detail, admin CRUD/lifecycle)
+- notifications (list, unread badge, mark-read, mark-all-read, click-through)
+- event-published notification icon and navigation
+- email-verified registration (3-step form, resend cooldown, already-registered link)
+- proxy middleware (auth-only, no onboarding gate)
+- onboarding hub (step progress, career assets, "Add later" navigation)
+- onboarding step validation (skills minimum-1, career interests minimum-1 role + location)
+- dashboard profile-completion banner
 - loading states
 - error states
 - empty states
@@ -914,8 +928,8 @@ Includes:
 Backend:
 
 ```text
-Ruff: clean
-Tests: 201/201
+Ruff: 1 pre-existing warning (unused `uuid` import in `registration.py`; unrelated to onboarding)
+Tests: 304/304
 ```
 
 Frontend:
@@ -924,7 +938,7 @@ Frontend:
 ESLint: clean
 TypeScript: clean
 Next.js build: clean
-Tests: 223/223
+Tests: 319/319
 ```
 
 ---
@@ -1295,6 +1309,51 @@ Backend: 292/292 pytest passing inside the Docker dev stack's Postgres (1 update
 
 ---
 
+# 19.10 Onboarding Validation Fix ✅
+
+## Root causes
+
+**Skills step (`apps/web/features/onboarding/SkillsStep.tsx`):** `handleContinue` navigated forward unconditionally without checking whether any skills had been added. Since `profile_completion.py` requires `skill_count > 0` for skills to be complete, a candidate who clicked Continue with no skills would be taken to the next step but `next_action` would keep returning `SKILLS` and routing them back.
+
+**Career Interests step (`apps/web/features/onboarding/CareerStep.tsx`):** `handleContinue` submitted empty arrays to the backend without validation. `_preferences_complete` returns `False` when either `preferred_roles` or `preferred_locations` is empty, so saving `{preferred_roles: [], preferred_locations: []}` left `career_preferences: false` and `next_action` looped back to `/onboarding/career`.
+
+## Fixes
+
+- `SkillsStep.tsx`: Guard added — if `skills.length === 0`, show "Add at least one skill to continue." and block navigation.
+- `CareerStep.tsx`: Guard added — if `preferredRoles.length === 0 || preferredLocations.length === 0`, show "Add at least one preferred role and one preferred location to continue." and skip the API call.
+
+## Files changed
+
+- `apps/web/features/onboarding/SkillsStep.tsx` — validation guard
+- `apps/web/features/onboarding/CareerStep.tsx` — validation guard
+- `apps/web/features/onboarding/SkillsStep.test.tsx` — 1 test updated (was asserting incorrect allow-through behavior), 1 new test added
+- `apps/web/features/onboarding/CareerStep.test.tsx` — 2 new tests added; existing save-fail test updated to supply populated lists so the new guard doesn't fire first
+- `apps/api/tests/test_candidate_preferences.py` — 1 new backend test: `test_empty_preferences_do_not_count_as_complete_in_dashboard`
+
+In addition, the following were already in the working tree from a prior maintenance task:
+- `apps/web/app/onboarding/page.tsx` — "Add later" buttons replaced with functional `<Link>` elements
+- `apps/web/app/onboarding/page.test.tsx` — 2 tests added for the above
+
+## Regression tests
+
+- Skills Continue blocked with 0 skills (new frontend test)
+- Skills Continue allowed with ≥1 skill (updated frontend test)
+- Career Interests Continue blocked when roles empty (new frontend test)
+- Career Interests Continue blocked when locations empty (new frontend test)
+- Empty preferences save does not satisfy `career_preferences` in dashboard (new backend test)
+
+## Verified
+
+Backend: 304/304 pytest passing inside the Docker dev stack's Postgres (1 new test in `test_candidate_preferences.py`), `ruff check .` has 1 pre-existing warning — unused `uuid` import in `apps/api/app/services/registration.py`, unrelated to this change. Frontend: 319/319 Vitest passing (3 net new tests across `SkillsStep.test.tsx` and `CareerStep.test.tsx`, plus 2 from the prior "Add later" hub fix), `tsc --noEmit` clean, `eslint` clean.
+
+Browser UI verification was not performed. The fixes are logic-only (no markup changes); the validation error banners use the same `OnboardingStepShell` error path already exercised by all other steps.
+
+## Known limitation
+
+The About You step shows a single generic "Please fill in every field." rather than per-field inline errors. The validation gate correctly prevents forward navigation when required fields are missing, but the error message does not identify the specific missing field. This is a UX quality issue, not a progression bug.
+
+---
+
 # 20. Explicitly Deferred Features
 
 The following are NOT currently implemented:
@@ -1433,6 +1492,8 @@ Phase 12     Events & Webinars MVP       ✅
 Phase 13     Notifications V1            ✅
 Phase 13.1   Event Published Notifications ✅
 Phase 14     Email Verification + Secure Registration ✅
+Phase 15     Guided First-Login Onboarding          ✅
+Phase 15.1   Onboarding Validation Fix               ✅
 ```
 
 ---

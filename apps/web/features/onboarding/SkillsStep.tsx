@@ -51,6 +51,10 @@ export function SkillsStep() {
   }
 
   function handleContinue() {
+    if (skills.length === 0) {
+      setError("Add at least one skill to continue.");
+      return;
+    }
     setIsSubmitting(true);
     router.push(nextPath);
   }
